@@ -4,12 +4,15 @@ import android.annotation.SuppressLint
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import io.shubham0204.smollm.SmolLM
 import kotlinx.coroutines.CancellationException
@@ -30,7 +33,10 @@ import java.net.URL
 class NovaActivity : ComponentActivity() {
 
     private val systemPrompt =
-        "Eres Nova, un asistente amable y directo. Responde siempre en español, con frases cortas."
+        "Eres Nova, una asistente de inteligencia artificial amable y directa. " +
+            "Eres una IA sin cuerpo: no tienes manos, fotos ni cara. " +
+            "Responde siempre en español, con frases cortas. " +
+            "Si no sabes algo, dilo con honestidad en vez de inventar."
     private val modelUrl =
         "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"
 
@@ -49,20 +55,33 @@ class NovaActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         web = WebView(this)
         web.setBackgroundColor(Color.parseColor("#0F1115"))
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.webViewClient = WebViewClient()
         web.addJavascriptInterface(Bridge(), "NovaBridge")
-        ViewCompat.setOnApplyWindowInsetsListener(web) { v, insets ->
+
+        val root = FrameLayout(this)
+        root.setBackgroundColor(Color.parseColor("#0F1115"))
+        root.addView(
+            web,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val b = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime()
             )
             v.setPadding(b.left, b.top, b.right, b.bottom)
-            insets
+            WindowInsetsCompat.CONSUMED
         }
-        setContentView(web)
+        WindowCompat.getInsetsController(window, root).isAppearanceLightStatusBars = false
+        setContentView(root)
         web.loadUrl("file:///android_asset/nova.html")
     }
 
