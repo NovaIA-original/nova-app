@@ -7,96 +7,310 @@
 <title>Nova</title>
 <style>
 :root{--bg:#0f1115;--panel:#171a21;--bot:#1f2430;--user:#4f7cff;--text:#e8ebf2;--muted:#8b93a7;--line:#262b36}
-*{box-sizing:border-box;margin:0}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{background:var(--bg);color:var(--text);font:16px/1.45 system-ui,sans-serif;display:flex;flex-direction:column}
-header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
-.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6a8dff,#a66bff);display:grid;place-items:center;color:#fff;font-weight:700}
-.title{flex:1}
-.title b{display:block}
-.title small{color:var(--muted);display:flex;align-items:center;gap:6px}
-#dot{width:8px;height:8px;border-radius:50%;background:#e5534b}
-#dot.on{background:#3fb950}
-header button{background:none;border:0;font-size:20px;padding:8px;color:var(--text)}
+body{background:var(--bg);color:var(--text);font:16px/1.45 system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+header{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line)}
+.ib{width:44px;height:44px;border:0;border-radius:50%;background:none;font-size:22px}
+.ib:active,#modelbtn:active{background:var(--bot)}
+#modelbtn{display:flex;flex-direction:column;align-items:center;border:0;background:none;padding:4px 14px;border-radius:14px}
+.mname{font-weight:600;font-size:17px}
+.caret{font-size:12px;color:var(--muted);margin-left:4px}
+#estado{font-size:12px;color:var(--muted)}
+#estado::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#e5534b;margin-right:6px}
+#estado.on::before{background:#3fb950}
 #chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-.msg{max-width:82%;padding:10px 14px;border-radius:18px;white-space:pre-wrap;word-wrap:break-word}
+.msg{max-width:84%;padding:10px 14px;border-radius:18px;white-space:pre-wrap;word-wrap:break-word}
 .user{align-self:flex-end;background:var(--user);color:#fff;border-bottom-right-radius:6px}
 .bot{align-self:flex-start;background:var(--bot);border-bottom-left-radius:6px}
 .typing::after{content:"...";letter-spacing:2px;color:var(--muted);animation:p 1s infinite}
 @keyframes p{50%{opacity:.3}}
+.welcome{margin:auto;text-align:center;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:8px}
+.welcome h2{color:var(--text);font-weight:600}
+.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6a8dff,#a66bff);display:grid;place-items:center;color:#fff;font-weight:700;overflow:hidden;flex:none}
+.welcome .avatar{width:84px;height:84px;font-size:36px}
 form{display:flex;gap:8px;padding:10px 12px;background:var(--panel);border-top:1px solid var(--line)}
 textarea{flex:1;resize:none;border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:20px;padding:10px 14px;font:inherit;max-height:120px;outline:none}
 #send{width:44px;height:44px;border:0;border-radius:50%;background:var(--user);color:#fff;font-size:20px}
-#send:disabled{opacity:.5}
-#setup{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;z-index:10}
-#setup .avatar{width:72px;height:72px;font-size:32px}
-#btns{display:none;flex-direction:column;gap:10px;width:100%;max-width:320px}
-.btn{border:0;border-radius:14px;padding:14px;font:inherit;background:var(--user);color:#fff}
-.btn.sec{background:var(--bot);color:var(--text)}
-#bar{width:100%;max-width:320px;height:8px;border-radius:4px;background:var(--bot);overflow:hidden;display:none}
-#fill{height:100%;width:0;background:var(--user)}
-#err{color:#e5534b;font-size:14px}
+#send:disabled{opacity:.45}
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+#scrim.open{opacity:1;pointer-events:auto}
+#drawer{position:fixed;top:0;bottom:0;left:0;width:84%;max-width:320px;background:var(--panel);transform:translateX(-102%);transition:transform .22s;z-index:21;display:flex;flex-direction:column;padding:14px 12px;gap:10px}
+#drawer.open{transform:none}
+.dhead{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600}
+.dnew{border:1px solid var(--line);background:var(--bot);border-radius:14px;padding:12px;text-align:left}
+.dlabel{color:var(--muted);font-size:13px;padding:4px 6px}
+#list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.crow{display:flex;align-items:center;border-radius:12px}
+.crow.act{background:var(--bot)}
+.ctitle{flex:1;min-width:0;text-align:left;border:0;background:none;padding:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cdel{border:0;background:none;color:var(--muted);padding:10px 12px;border-radius:10px;font-size:14px}
+.cdel.arm{color:#fff;background:#c0392b}
+.dfoot{color:var(--muted);font-size:12px;text-align:center;padding:6px}
+#sheet{position:fixed;left:0;right:0;bottom:0;max-height:82%;overflow-y:auto;background:var(--panel);border-radius:22px 22px 0 0;transform:translateY(104%);transition:transform .25s;z-index:22;padding:16px 16px 22px}
+#sheet.open{transform:none}
+.grab{width:42px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+#sheet h3{font-size:18px;margin-bottom:4px}
+#sheetmsg{color:var(--muted);font-size:14px;margin-bottom:12px}
+.mrow{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:16px;margin-bottom:10px}
+.mrow.sel{border-color:var(--user)}
+.minfo{flex:1;display:flex;flex-direction:column}
+.minfo small{color:var(--muted)}
+.mact{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:100px}
+.mbtn{border:0;border-radius:12px;padding:9px 14px;background:var(--bot)}
+.mbtn.pri{background:var(--user);color:#fff}
+.mbtn:disabled{opacity:.6}
+.mlink{border:0;background:none;color:var(--muted);font-size:12px;text-decoration:underline;padding:2px}
+.prog{width:100px;height:8px;border-radius:4px;background:var(--bot);overflow:hidden}
+.pfill{height:100%;width:0;background:var(--user)}
+#toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#2a2f3c;color:var(--text);padding:10px 16px;border-radius:14px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:40;max-width:90%;text-align:center}
+#toast.show{opacity:1}
 </style>
 </head>
 <body>
 <header>
-  <div class="avatar">N</div>
-  <div class="title"><b>Nova</b><small><span id="dot"></span><span id="estado">preparando...</span></small></div>
-  <button id="borrar" type="button">🗑️</button>
+  <button class="ib" id="menu" type="button">☰</button>
+  <button id="modelbtn" type="button"><div><span class="mname" id="mname">Nova</span><span class="caret">▾</span></div><small id="estado">preparando...</small></button>
+  <button class="ib" id="nuevo" type="button">✎</button>
 </header>
 <div id="chat"></div>
 <form id="form">
   <textarea id="box" rows="1" placeholder="Escribe un mensaje..."></textarea>
   <button id="send" type="submit" disabled>➤</button>
 </form>
-<div id="setup">
-  <div class="avatar">N</div>
-  <div id="smsg">Preparando a Nova...</div>
-  <div id="bar"><div id="fill"></div></div>
-  <div id="btns">
-    <button class="btn" id="b1" type="button">Descargar (1.1 GB, usa WiFi)</button>
-    <button class="btn sec" id="b2" type="button">Ya tengo el archivo, elegirlo</button>
-  </div>
-  <div id="err"></div>
+<div id="scrim"></div>
+<aside id="drawer">
+  <div class="dhead"><div class="avatar">N</div>Nova</div>
+  <button class="dnew" id="newchat" type="button">✎  Nuevo chat</button>
+  <div class="dlabel">Chats</div>
+  <div id="list"></div>
+  <div class="dfoot">Todo funciona sin internet</div>
+</aside>
+<div id="sheet">
+  <div class="grab"></div>
+  <h3>Modelo de Nova</h3>
+  <p id="sheetmsg"></p>
+  <div id="mlist"></div>
 </div>
+<div id="toast"></div>
 <script>
-const B = window.NovaBridge;
-const $ = s => document.querySelector(s);
-const chat=$("#chat"), box=$("#box"), send=$("#send"), dot=$("#dot"), estado=$("#estado");
-const setup=$("#setup"), smsg=$("#smsg"), bar=$("#bar"), fill=$("#fill"), btns=$("#btns"), err=$("#err");
-let busy=false, cur=null;
-function burbuja(rol,t){const d=document.createElement("div");d.className="msg "+rol;d.textContent=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;}
-function panel(msg,mostrarBtns,pct){
-  setup.style.display="flex";smsg.textContent=msg;
-  btns.style.display=mostrarBtns?"flex":"none";
-  bar.style.display=pct==null?"none":"block";fill.style.width=(pct||0)+"%";
-  dot.className="";estado.textContent="preparando...";
+const B=window.NovaBridge;
+const $=s=>document.querySelector(s);
+const chatEl=$("#chat"),box=$("#box"),sendBtn=$("#send"),estado=$("#estado"),mname=$("#mname"),scrim=$("#scrim"),drawer=$("#drawer"),sheet=$("#sheet");
+let data={chats:[],current:null,model:"nova"};
+let models=[],ready=false,busy=false,cur=null,ctxChat=null,ctxModel=null,afterReady=null,loadingText="preparando...",saveT=null,toastT=null,fotoOk=false;
+const FOTO="file:///android_res/drawable/nova_logo.png";
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const chat=()=>data.chats.find(c=>c.id===data.current);
+
+function aplicarFoto(){
+  if(!fotoOk)return;
+  document.querySelectorAll(".avatar").forEach(a=>{a.style.background="url("+FOTO+") center/cover";a.style.color="transparent";});
 }
-window.novaNeedModel=()=>panel("Nova necesita descargar su cerebro (1.1 GB). Se hace una sola vez y después funciona sin internet.",true,null);
-window.novaStatus=m=>panel(m,false,null);
-window.novaProgress=p=>panel("Descargando a Nova... "+p+"%",false,p);
-window.novaReady=()=>{
-  setup.style.display="none";err.textContent="";dot.className="on";estado.textContent="en línea";
-  busy=false;send.disabled=false;
-  if(!chat.children.length)burbuja("bot","Hola, soy Nova. ¿En qué te ayudo?");
-};
-window.novaPartial=t=>{if(cur){cur.classList.remove("typing");cur.textContent=t;chat.scrollTop=chat.scrollHeight;}};
-window.novaDone=t=>{if(cur){cur.classList.remove("typing");if(!cur.textContent)cur.textContent="...";cur=null;}busy=false;send.disabled=false;};
-window.novaError=m=>{err.textContent="⚠️ "+m;if(cur){cur.classList.remove("typing");cur.textContent="⚠️ "+m;cur=null;}busy=false;send.disabled=false;};
-function crecer(){box.style.height="auto";box.style.height=Math.min(box.scrollHeight,120)+"px";}
+const im=new Image();
+im.onload=()=>{fotoOk=true;aplicarFoto();};
+im.src=FOTO;
+
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),3200);}
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>{if(B)B.saveData(JSON.stringify(data));},300);}
+function setStatus(t,on){estado.textContent=t;estado.className=on?"on":"";}
+function modelName(){const m=models.find(x=>x.id===data.model);return m?m.name:"Nova";}
+function refreshHeader(){
+  mname.textContent=modelName();
+  const dl=models.find(m=>m.state==="downloading");
+  if(ready&&busy)setStatus("escribiendo...",true);
+  else if(ready)setStatus("en línea",true);
+  else if(dl)setStatus("descargando "+(dl.pct||0)+"%",false);
+  else setStatus(loadingText,false);
+  sendBtn.disabled=!ready||busy;
+}
+
+function bubble(rol,t){const d=document.createElement("div");d.className="msg "+rol;d.textContent=t;chatEl.appendChild(d);chatEl.scrollTop=chatEl.scrollHeight;return d;}
+function renderChat(){
+  chatEl.innerHTML="";
+  const c=chat();
+  if(!c||!c.msgs.length){
+    const w=document.createElement("div");w.className="welcome";
+    w.innerHTML='<div class="avatar">N</div><h2>Hola, soy Nova</h2><p>¿En qué te ayudo?</p>';
+    chatEl.appendChild(w);
+  }else c.msgs.forEach(m=>bubble(m.role==="user"?"user":"bot",m.content));
+  chatEl.scrollTop=chatEl.scrollHeight;
+  aplicarFoto();
+}
+
+function openDrawer(){drawer.classList.add("open");scrim.classList.add("open");}
+function closeDrawer(){drawer.classList.remove("open");if(!sheet.classList.contains("open"))scrim.classList.remove("open");}
+function showSheet(msg){
+  $("#sheetmsg").textContent=msg||"Elige qué cerebro usa Nova. Los que ya descargaste funcionan sin internet.";
+  renderSheet();sheet.classList.add("open");scrim.classList.add("open");
+}
+function closeSheet(){sheet.classList.remove("open");if(!drawer.classList.contains("open"))scrim.classList.remove("open");}
+
+function renderList(){
+  const L=$("#list");L.innerHTML="";
+  data.chats.forEach(c=>{
+    const row=document.createElement("div");row.className="crow"+(c.id===data.current?" act":"");
+    const t=document.createElement("button");t.className="ctitle";t.type="button";t.textContent=c.title;t.onclick=()=>selectChat(c.id);
+    const x=document.createElement("button");x.className="cdel";x.type="button";x.textContent="✕";
+    x.onclick=e=>{
+      e.stopPropagation();
+      if(x.dataset.arm){delChat(c.id);}
+      else{
+        x.dataset.arm="1";x.textContent="¿Borrar?";x.classList.add("arm");
+        setTimeout(()=>{if(x.isConnected){delete x.dataset.arm;x.textContent="✕";x.classList.remove("arm");}},3000);
+      }
+    };
+    row.append(t,x);L.appendChild(row);
+  });
+}
+function selectChat(id){
+  if(busy){toast("Espera a que Nova termine de responder");return;}
+  data.current=id;save();renderChat();renderList();closeDrawer();
+}
+function newChat(){
+  if(busy){toast("Espera a que Nova termine de responder");return;}
+  const c0=chat();
+  if(c0&&!c0.msgs.length){closeDrawer();return;}
+  const c={id:uid(),title:"Nuevo chat",msgs:[],ts:Date.now()};
+  data.chats.unshift(c);data.current=c.id;save();renderChat();renderList();closeDrawer();
+}
+function delChat(id){
+  if(busy){toast("Espera a que Nova termine de responder");return;}
+  data.chats=data.chats.filter(c=>c.id!==id);
+  if(!data.chats.length)data.chats.push({id:uid(),title:"Nuevo chat",msgs:[],ts:Date.now()});
+  if(!chat())data.current=data.chats[0].id;
+  save();renderChat();renderList();
+}
+
+function renderSheet(){
+  const L=$("#mlist");L.innerHTML="";
+  models.forEach(m=>{
+    const row=document.createElement("div");row.className="mrow"+(m.id===data.model&&m.state==="ready"?" sel":"");
+    const info=document.createElement("div");info.className="minfo";
+    const b1=document.createElement("b");b1.textContent=m.name;
+    const s1=document.createElement("small");
+    s1.textContent=m.desc+" · "+(m.size>=1000?(m.size/1000).toFixed(1)+" GB":m.size+" MB");
+    info.append(b1,s1);row.appendChild(info);
+    const act=document.createElement("div");act.className="mact";
+    if(m.state==="ready"){
+      const b=document.createElement("button");b.type="button";b.className="mbtn";
+      if(m.id===data.model){b.textContent="✓ En uso";b.disabled=true;}
+      else{b.textContent="Usar";b.onclick=()=>selectModel(m.id);}
+      act.appendChild(b);
+    }else if(m.state==="downloading"){
+      const p=document.createElement("div");p.className="prog";
+      const f=document.createElement("div");f.className="pfill";f.style.width=(m.pct||0)+"%";p.appendChild(f);
+      const t=document.createElement("small");t.textContent="Descargando "+(m.pct||0)+"%";
+      act.append(p,t);
+    }else{
+      const b=document.createElement("button");b.type="button";b.className="mbtn pri";b.textContent="Descargar";
+      b.onclick=()=>{m.state="downloading";m.pct=0;renderSheet();refreshHeader();B.download(m.id);};
+      const a=document.createElement("button");a.type="button";a.className="mlink";a.textContent="Ya tengo el archivo";a.onclick=()=>B.pick(m.id);
+      act.append(b,a);
+    }
+    row.appendChild(act);L.appendChild(row);
+  });
+}
+function selectModel(id){
+  if(busy){toast("Espera a que Nova termine de responder");return;}
+  data.model=id;save();closeSheet();activate(false);
+}
+
+function activate(excludeLast){
+  let m=models.find(x=>x.id===data.model);
+  if(!m||m.state!=="ready"){
+    const r=models.find(x=>x.state==="ready");
+    if(r){data.model=r.id;save();}
+    else{ready=false;loadingText="sin modelo";refreshHeader();showSheet("Descarga un modelo para que Nova pueda pensar. Se hace una sola vez y después funciona sin internet.");return;}
+  }
+  ready=false;loadingText="cargando...";refreshHeader();
+  const c=chat();
+  const hist=c?c.msgs.filter(x=>x.content):[];
+  B.startChat(data.model,JSON.stringify(excludeLast?hist.slice(0,-1):hist));
+}
+
 function enviar(){
   const t=box.value.trim();
-  if(!t||busy||!B)return;
-  box.value="";crecer();busy=true;send.disabled=true;
-  burbuja("user",t);cur=burbuja("bot","");cur.classList.add("typing");
-  B.send(t);
+  if(!t||busy||!ready)return;
+  box.value="";crecer();
+  const c=chat();
+  const w=document.querySelector(".welcome");if(w)w.remove();
+  c.msgs.push({role:"user",content:t});
+  if(c.title==="Nuevo chat")c.title=t.length>30?t.slice(0,30)+"…":t;
+  c.ts=Date.now();
+  data.chats=[c].concat(data.chats.filter(x=>x!==c));
+  bubble("user",t);cur=bubble("bot","");cur.classList.add("typing");
+  busy=true;refreshHeader();renderList();save();
+  if(ctxChat!==data.current||ctxModel!==data.model){afterReady=()=>B.send(t);activate(true);}
+  else B.send(t);
 }
+function crecer(){box.style.height="auto";box.style.height=Math.min(box.scrollHeight,120)+"px";}
+
+window.novaStatus=m=>{loadingText=m;refreshHeader();};
+window.novaReady=()=>{
+  ready=true;ctxChat=data.current;ctxModel=data.model;loadingText="";
+  if(afterReady){const f=afterReady;afterReady=null;f();}
+  else busy=false;
+  refreshHeader();
+};
+window.novaPartial=t=>{if(cur){cur.classList.remove("typing");cur.textContent=t;chatEl.scrollTop=chatEl.scrollHeight;}};
+window.novaDone=t=>{
+  const c=chat();
+  if(cur){
+    cur.classList.remove("typing");
+    if(t&&t.trim()){if(c)c.msgs.push({role:"assistant",content:t.trim()});}
+    else if(!cur.textContent)cur.textContent="…";
+    cur=null;
+  }
+  busy=false;save();refreshHeader();
+};
+window.novaError=m=>{
+  toast(m);
+  if(cur){cur.classList.remove("typing");cur.textContent="⚠️ "+m;cur=null;}
+  busy=false;afterReady=null;
+  if(!ready)loadingText="error";
+  refreshHeader();
+};
+window.novaNotice=m=>{toast(m);};
+window.novaRebuild=()=>{if(!busy)activate(false);};
+window.novaModels=j=>{try{models=JSON.parse(j);}catch(e){}renderSheet();refreshHeader();};
+window.novaProgress=(id,p)=>{const m=models.find(x=>x.id===id);if(m){m.state="downloading";m.pct=p;}renderSheet();refreshHeader();};
+window.novaDownloaded=id=>{
+  if(!ready&&!busy){data.model=id;save();closeSheet();activate(false);}
+  else toast("Modelo listo para usar");
+  renderSheet();
+};
+window.novaNeedModel=()=>{
+  try{models=JSON.parse(B.getModels());}catch(e){}
+  showSheet("Descarga un modelo para que Nova pueda pensar. Se hace una sola vez y después funciona sin internet.");
+};
+window.novaBack=()=>{
+  if(sheet.classList.contains("open")){closeSheet();return true;}
+  if(drawer.classList.contains("open")){closeDrawer();return true;}
+  return false;
+};
+
 $("#form").addEventListener("submit",e=>{e.preventDefault();enviar();});
 box.addEventListener("input",crecer);
-$("#b1").onclick=()=>B.download();
-$("#b2").onclick=()=>B.pick();
-$("#borrar").onclick=()=>{if(B){chat.innerHTML="";B.reset();}};
-if(B){B.begin();}else{panel("Abre esto desde la app Nova.",false,null);}
+$("#menu").onclick=openDrawer;
+$("#nuevo").onclick=newChat;
+$("#newchat").onclick=newChat;
+$("#modelbtn").onclick=()=>showSheet("");
+scrim.onclick=()=>{closeSheet();closeDrawer();};
+
+function init(){
+  if(!B){document.body.innerHTML='<p style="padding:24px">Abre esto desde la app Nova.</p>';return;}
+  try{const raw=B.loadData();if(raw){const d=JSON.parse(raw);if(d&&d.chats)data=d;}}catch(e){}
+  if(!data.chats.length)data.chats.push({id:uid(),title:"Nuevo chat",msgs:[],ts:Date.now()});
+  if(!chat())data.current=data.chats[0].id;
+  if(!data.model)data.model="nova";
+  try{models=JSON.parse(B.getModels());}catch(e){models=[];}
+  B.begin();
+  renderChat();renderList();renderSheet();refreshHeader();
+  activate(false);
+}
+init();
 </script>
 </body>
 </html>
