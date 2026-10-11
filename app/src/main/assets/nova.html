@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Nova</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--bot:#1f2430;--user:#4f7cff;--text:#e8ebf2;--muted:#8b93a7;--line:#262b36}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font:16px/1.45 system-ui,sans-serif;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6a8dff,#a66bff);display:grid;place-items:center;color:#fff;font-weight:700}
+.title{flex:1}
+.title b{display:block}
+.title small{color:var(--muted);display:flex;align-items:center;gap:6px}
+#dot{width:8px;height:8px;border-radius:50%;background:#e5534b}
+#dot.on{background:#3fb950}
+header button{background:none;border:0;font-size:20px;padding:8px;color:var(--text)}
+#chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:82%;padding:10px 14px;border-radius:18px;white-space:pre-wrap;word-wrap:break-word}
+.user{align-self:flex-end;background:var(--user);color:#fff;border-bottom-right-radius:6px}
+.bot{align-self:flex-start;background:var(--bot);border-bottom-left-radius:6px}
+.typing::after{content:"...";letter-spacing:2px;color:var(--muted);animation:p 1s infinite}
+@keyframes p{50%{opacity:.3}}
+form{display:flex;gap:8px;padding:10px 12px;background:var(--panel);border-top:1px solid var(--line)}
+textarea{flex:1;resize:none;border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:20px;padding:10px 14px;font:inherit;max-height:120px;outline:none}
+#send{width:44px;height:44px;border:0;border-radius:50%;background:var(--user);color:#fff;font-size:20px}
+#send:disabled{opacity:.5}
+#setup{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;z-index:10}
+#setup .avatar{width:72px;height:72px;font-size:32px}
+#btns{display:none;flex-direction:column;gap:10px;width:100%;max-width:320px}
+.btn{border:0;border-radius:14px;padding:14px;font:inherit;background:var(--user);color:#fff}
+.btn.sec{background:var(--bot);color:var(--text)}
+#bar{width:100%;max-width:320px;height:8px;border-radius:4px;background:var(--bot);overflow:hidden;display:none}
+#fill{height:100%;width:0;background:var(--user)}
+#err{color:#e5534b;font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="avatar">N</div>
+  <div class="title"><b>Nova</b><small><span id="dot"></span><span id="estado">preparando...</span></small></div>
+  <button id="borrar" type="button">🗑️</button>
+</header>
+<div id="chat"></div>
+<form id="form">
+  <textarea id="box" rows="1" placeholder="Escribe un mensaje..."></textarea>
+  <button id="send" type="submit" disabled>➤</button>
+</form>
+<div id="setup">
+  <div class="avatar">N</div>
+  <div id="smsg">Preparando a Nova...</div>
+  <div id="bar"><div id="fill"></div></div>
+  <div id="btns">
+    <button class="btn" id="b1" type="button">Descargar (1.1 GB, usa WiFi)</button>
+    <button class="btn sec" id="b2" type="button">Ya tengo el archivo, elegirlo</button>
+  </div>
+  <div id="err"></div>
+</div>
+<script>
+const B = window.NovaBridge;
+const $ = s => document.querySelector(s);
+const chat=$("#chat"), box=$("#box"), send=$("#send"), dot=$("#dot"), estado=$("#estado");
+const setup=$("#setup"), smsg=$("#smsg"), bar=$("#bar"), fill=$("#fill"), btns=$("#btns"), err=$("#err");
+let busy=false, cur=null;
+function burbuja(rol,t){const d=document.createElement("div");d.className="msg "+rol;d.textContent=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;}
+function panel(msg,mostrarBtns,pct){
+  setup.style.display="flex";smsg.textContent=msg;
+  btns.style.display=mostrarBtns?"flex":"none";
+  bar.style.display=pct==null?"none":"block";fill.style.width=(pct||0)+"%";
+  dot.className="";estado.textContent="preparando...";
+}
+window.novaNeedModel=()=>panel("Nova necesita descargar su cerebro (1.1 GB). Se hace una sola vez y después funciona sin internet.",true,null);
+window.novaStatus=m=>panel(m,false,null);
+window.novaProgress=p=>panel("Descargando a Nova... "+p+"%",false,p);
+window.novaReady=()=>{
+  setup.style.display="none";err.textContent="";dot.className="on";estado.textContent="en línea";
+  busy=false;send.disabled=false;
+  if(!chat.children.length)burbuja("bot","Hola, soy Nova. ¿En qué te ayudo?");
+};
+window.novaPartial=t=>{if(cur){cur.classList.remove("typing");cur.textContent=t;chat.scrollTop=chat.scrollHeight;}};
+window.novaDone=t=>{if(cur){cur.classList.remove("typing");if(!cur.textContent)cur.textContent="...";cur=null;}busy=false;send.disabled=false;};
+window.novaError=m=>{err.textContent="⚠️ "+m;if(cur){cur.classList.remove("typing");cur.textContent="⚠️ "+m;cur=null;}busy=false;send.disabled=false;};
+function crecer(){box.style.height="auto";box.style.height=Math.min(box.scrollHeight,120)+"px";}
+function enviar(){
+  const t=box.value.trim();
+  if(!t||busy||!B)return;
+  box.value="";crecer();busy=true;send.disabled=true;
+  burbuja("user",t);cur=burbuja("bot","");cur.classList.add("typing");
+  B.send(t);
+}
+$("#form").addEventListener("submit",e=>{e.preventDefault();enviar();});
+box.addEventListener("input",crecer);
+$("#b1").onclick=()=>B.download();
+$("#b2").onclick=()=>B.pick();
+$("#borrar").onclick=()=>{if(B){chat.innerHTML="";B.reset();}};
+if(B){B.begin();}else{panel("Abre esto desde la app Nova.",false,null);}
+</script>
+</body>
+</html>
