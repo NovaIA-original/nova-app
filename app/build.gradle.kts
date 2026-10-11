@@ -12,7 +12,7 @@ android {
     ndkVersion = "27.2.12479018"
 
     defaultConfig {
-        applicationId = "io.shubham0204.smollmandroid"
+        applicationId = "Nova"
         minSdk = 26
         targetSdk = 35
         versionCode = 16
