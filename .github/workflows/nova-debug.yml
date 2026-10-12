@@ -11,6 +11,11 @@ jobs:
         with:
           submodules: true
 
+      - name: Usar llave de firma fija
+        run: |
+          mkdir -p ~/.android
+          cp nova-debug.keystore ~/.android/debug.keystore
+
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
