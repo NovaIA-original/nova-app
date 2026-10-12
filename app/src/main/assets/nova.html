@@ -12,7 +12,7 @@ html,body{height:100%}
 body{background:var(--bg);color:var(--text);font:16px/1.45 system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden}
 button{font:inherit;color:inherit;cursor:pointer}
 header{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line)}
-.ib{width:44px;height:44px;border:0;border-radius:50%;background:none;font-size:22px}
+.ib{width:44px;height:44px;border:0;border-radius:50%;background:none;font-size:22px;flex:none}
 .ib:active,#modelbtn:active{background:var(--bot)}
 #modelbtn{display:flex;flex-direction:column;align-items:center;border:0;background:none;padding:4px 14px;border-radius:14px}
 .mname{font-weight:600;font-size:17px}
@@ -26,14 +26,26 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 .bot{align-self:flex-start;background:var(--bot);border-bottom-left-radius:6px}
 .typing::after{content:"...";letter-spacing:2px;color:var(--muted);animation:p 1s infinite}
 @keyframes p{50%{opacity:.3}}
+.acts{align-self:flex-start;display:flex;gap:2px;margin:-6px 0 0 6px}
+.acts button{border:0;background:none;color:var(--muted);font-size:15px;padding:4px 8px;border-radius:8px}
+.acts button:active{background:var(--bot)}
+.srcs{margin-top:8px;display:flex;flex-direction:column;gap:4px;font-size:12px;white-space:normal}
+.srcs a{color:#8fb0ff;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .welcome{margin:auto;text-align:center;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:8px}
 .welcome h2{color:var(--text);font-weight:600}
+.sugs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+.sugs button{border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:8px 12px;font-size:14px}
 .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6a8dff,#a66bff);display:grid;place-items:center;color:#fff;font-weight:700;overflow:hidden;flex:none}
 .welcome .avatar{width:84px;height:84px;font-size:36px}
-form{display:flex;gap:8px;padding:10px 12px;background:var(--panel);border-top:1px solid var(--line)}
+footer{background:var(--panel);border-top:1px solid var(--line)}
+#chips{display:flex;gap:8px;padding:8px 12px 0}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--muted);border-radius:16px;padding:5px 12px;font-size:13px}
+.chip.on{background:var(--user);border-color:var(--user);color:#fff}
+form{display:flex;align-items:flex-end;gap:6px;padding:8px 12px 4px}
 textarea{flex:1;resize:none;border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:20px;padding:10px 14px;font:inherit;max-height:120px;outline:none}
-#send{width:44px;height:44px;border:0;border-radius:50%;background:var(--user);color:#fff;font-size:20px}
+#send{width:44px;height:44px;border:0;border-radius:50%;background:var(--user);color:#fff;font-size:20px;flex:none}
 #send:disabled{opacity:.45}
+#aviso{text-align:center;color:var(--muted);font-size:11px;opacity:.8;padding:0 12px 8px}
 #scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
 #scrim.open{opacity:1;pointer-events:auto}
 #drawer{position:fixed;top:0;bottom:0;left:0;width:84%;max-width:320px;background:var(--panel);transform:translateX(-102%);transition:transform .22s;z-index:21;display:flex;flex-direction:column;padding:14px 12px;gap:10px}
@@ -48,10 +60,10 @@ textarea{flex:1;resize:none;border:1px solid var(--line);background:var(--bg);co
 .cdel{border:0;background:none;color:var(--muted);padding:10px 12px;border-radius:10px;font-size:14px}
 .cdel.arm{color:#fff;background:#c0392b}
 .dfoot{color:var(--muted);font-size:12px;text-align:center;padding:6px}
-#sheet{position:fixed;left:0;right:0;bottom:0;max-height:82%;overflow-y:auto;background:var(--panel);border-radius:22px 22px 0 0;transform:translateY(104%);transition:transform .25s;z-index:22;padding:16px 16px 22px}
-#sheet.open{transform:none}
+#sheet,#cfg{position:fixed;left:0;right:0;bottom:0;max-height:84%;overflow-y:auto;background:var(--panel);border-radius:22px 22px 0 0;transform:translateY(104%);transition:transform .25s;z-index:22;padding:16px 16px 22px}
+#sheet.open,#cfg.open{transform:none}
 .grab{width:42px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
-#sheet h3{font-size:18px;margin-bottom:4px}
+#sheet h3,#cfg h3{font-size:18px;margin-bottom:4px}
 #sheetmsg{color:var(--muted);font-size:14px;margin-bottom:12px}
 .mrow{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:16px;margin-bottom:10px}
 .mrow.sel{border-color:var(--user)}
@@ -64,6 +76,14 @@ textarea{flex:1;resize:none;border:1px solid var(--line);background:var(--bg);co
 .mlink{border:0;background:none;color:var(--muted);font-size:12px;text-decoration:underline;padding:2px}
 .prog{width:100px;height:8px;border-radius:4px;background:var(--bot);overflow:hidden}
 .pfill{height:100%;width:0;background:var(--user)}
+.lbl{display:block;color:var(--muted);font-size:13px;margin:14px 0 6px}
+#cfg textarea,#cfg input[type=text]{width:100%;flex:none;border-radius:14px}
+#cfg input[type=range]{width:100%}
+.row2{display:flex;gap:10px;margin-top:12px}
+.row2 .mbtn{flex:1}
+.mem{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--bg);border-radius:12px;margin-bottom:6px;font-size:14px}
+.mem button{border:0;background:none;color:var(--muted);padding:4px 8px}
+.note{color:var(--muted);font-size:12px;margin-top:10px}
 #toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#2a2f3c;color:var(--text);padding:10px 16px;border-radius:14px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:40;max-width:90%;text-align:center}
 #toast.show{opacity:1}
 </style>
@@ -75,17 +95,26 @@ textarea{flex:1;resize:none;border:1px solid var(--line);background:var(--bg);co
   <button class="ib" id="nuevo" type="button">✎</button>
 </header>
 <div id="chat"></div>
-<form id="form">
-  <textarea id="box" rows="1" placeholder="Escribe un mensaje..."></textarea>
-  <button id="send" type="submit" disabled>➤</button>
-</form>
+<footer>
+  <div id="chips">
+    <button class="chip" id="chipWeb" type="button">🌐 Internet</button>
+    <button class="chip" id="chipVoz" type="button">🔊 Voz</button>
+  </div>
+  <form id="form">
+    <textarea id="box" rows="1" placeholder="Escribe un mensaje..."></textarea>
+    <button class="ib" id="mic" type="button">🎤</button>
+    <button id="send" type="submit" disabled>➤</button>
+  </form>
+  <div id="aviso">Nova es una IA y puede cometer errores.</div>
+</footer>
 <div id="scrim"></div>
 <aside id="drawer">
   <div class="dhead"><div class="avatar">N</div>Nova</div>
   <button class="dnew" id="newchat" type="button">✎  Nuevo chat</button>
   <div class="dlabel">Chats</div>
   <div id="list"></div>
-  <div class="dfoot">Todo funciona sin internet</div>
+  <button class="dnew" id="abrirCfg" type="button">⚙  Ajustes y memoria</button>
+  <div class="dfoot">Sin 🌐, todo funciona sin internet</div>
 </aside>
 <div id="sheet">
   <div class="grab"></div>
@@ -93,14 +122,38 @@ textarea{flex:1;resize:none;border:1px solid var(--line);background:var(--bg);co
   <p id="sheetmsg"></p>
   <div id="mlist"></div>
 </div>
+<div id="cfg">
+  <div class="grab"></div>
+  <h3>Ajustes de Nova</h3>
+  <label class="lbl">Instrucciones para Nova</label>
+  <textarea id="instr" rows="3" placeholder="Ej: háblame de tú, con humor y respuestas cortas"></textarea>
+  <label class="lbl">Tono de la voz: <span id="pv">1.0</span></label>
+  <input type="range" id="pitch" min="0.6" max="1.4" step="0.1" value="1">
+  <div class="row2">
+    <button class="mbtn" id="probar" type="button">Probar voz</button>
+    <button class="mbtn pri" id="guardar" type="button">Guardar</button>
+  </div>
+  <label class="lbl">Memoria de Nova</label>
+  <div id="memlist"></div>
+  <input type="text" id="meminp" placeholder="Algo que Nova deba recordar de ti" maxlength="160" style="background:var(--bg);color:var(--text);border:1px solid var(--line);padding:10px 14px;font:inherit;outline:none">
+  <div class="row2">
+    <button class="mbtn" id="addmem" type="button">Agregar</button>
+    <button class="mbtn" id="clrmem" type="button">Borrar todo</button>
+  </div>
+  <p class="note">También puedes decirle en el chat: «recuerda que me llamo ...». La memoria se guarda solo en tu celular. Con 🌐 activado, tus preguntas se envían a Wikipedia y DuckDuckGo; sin 🌐 nada sale de tu celular.</p>
+</div>
 <div id="toast"></div>
 <script>
 const B=window.NovaBridge;
 const $=s=>document.querySelector(s);
-const chatEl=$("#chat"),box=$("#box"),sendBtn=$("#send"),estado=$("#estado"),mname=$("#mname"),scrim=$("#scrim"),drawer=$("#drawer"),sheet=$("#sheet");
-let data={chats:[],current:null,model:"nova"};
-let models=[],ready=false,busy=false,cur=null,ctxChat=null,ctxModel=null,afterReady=null,loadingText="preparando...",saveT=null,toastT=null,fotoOk=false;
+const chatEl=$("#chat"),box=$("#box"),sendBtn=$("#send"),estado=$("#estado"),mname=$("#mname"),scrim=$("#scrim"),drawer=$("#drawer"),sheet=$("#sheet"),cfg=$("#cfg");
+let data={chats:[],current:null,model:"nova",web:false,speak:false,instr:"",pitch:1,mem:[]};
+let models=[],ready=false,busy=false,gen=false,awaitingWeb=false,pendingQ="",lastSrc=[],viaVoz=false;
+let cur=null,ctxChat=null,ctxModel=null,afterReady=null,loadingText="preparando...",saveT=null,toastT=null,fotoOk=false;
 const FOTO="file:///android_res/drawable/nova_logo.png";
+const SUG=["Cuéntame un chiste","Explícame algo curioso","Ayúdame a escribir un mensaje"];
+const MEMRE=/^\s*(?:recuerda|acuérdate|acuerdate|memoriza|anota)\s*(?:que|esto:?)?\s+(.+)$/i;
+const ORV=/^\s*(olvida todo|borra tu memoria|olvida lo que te dije)/i;
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const chat=()=>data.chats.find(c=>c.id===data.current);
 
@@ -119,33 +172,68 @@ function modelName(){const m=models.find(x=>x.id===data.model);return m?m.name:"
 function refreshHeader(){
   mname.textContent=modelName();
   const dl=models.find(m=>m.state==="downloading");
-  if(ready&&busy)setStatus("escribiendo...",true);
+  if(awaitingWeb)setStatus("buscando en internet...",true);
+  else if(ready&&busy)setStatus("escribiendo...",true);
   else if(ready)setStatus("en línea",true);
   else if(dl)setStatus("descargando "+(dl.pct||0)+"%",false);
   else setStatus(loadingText,false);
-  sendBtn.disabled=!ready||busy;
+  sendBtn.textContent=busy?"■":"➤";
+  sendBtn.disabled=!busy&&!ready;
+}
+function extra(){
+  let s=(data.instr||"").trim();
+  if(data.mem&&data.mem.length)s+=" Lo que recuerdas de la persona: "+data.mem.join("; ")+".";
+  s+=" Hoy es "+new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"})+".";
+  return s.trim();
 }
 
 function bubble(rol,t){const d=document.createElement("div");d.className="msg "+rol;d.textContent=t;chatEl.appendChild(d);chatEl.scrollTop=chatEl.scrollHeight;return d;}
+function addSources(div,src){
+  if(!src||!src.length)return;
+  const s=document.createElement("div");s.className="srcs";
+  src.forEach(r=>{const a=document.createElement("a");a.href=r.u;a.textContent="🔗 "+r.t;s.appendChild(a);});
+  div.appendChild(s);
+}
+function addActs(msg,isLast){
+  const a=document.createElement("div");a.className="acts";
+  const cp=document.createElement("button");cp.type="button";cp.textContent="📋";
+  cp.onclick=()=>{B.copy(msg.content);toast("Copiado");};
+  a.appendChild(cp);
+  if(isLast){const rg=document.createElement("button");rg.type="button";rg.className="regen";rg.textContent="↻";rg.onclick=regenerar;a.appendChild(rg);}
+  chatEl.appendChild(a);chatEl.scrollTop=chatEl.scrollHeight;
+}
+function quitarRegen(){document.querySelectorAll(".regen").forEach(e=>e.remove());}
 function renderChat(){
   chatEl.innerHTML="";
   const c=chat();
   if(!c||!c.msgs.length){
     const w=document.createElement("div");w.className="welcome";
     w.innerHTML='<div class="avatar">N</div><h2>Hola, soy Nova</h2><p>¿En qué te ayudo?</p>';
-    chatEl.appendChild(w);
-  }else c.msgs.forEach(m=>bubble(m.role==="user"?"user":"bot",m.content));
+    const sg=document.createElement("div");sg.className="sugs";
+    SUG.forEach(s=>{const b=document.createElement("button");b.type="button";b.textContent=s;b.onclick=()=>{if(ready&&!busy){box.value=s;enviar();}};sg.appendChild(b);});
+    w.appendChild(sg);chatEl.appendChild(w);
+  }else{
+    const last=c.msgs.length-1;
+    c.msgs.forEach((m,i)=>{
+      if(m.role==="user")bubble("user",m.content);
+      else{const d=bubble("bot",m.content);addSources(d,m.src);addActs(m,i===last);}
+    });
+  }
   chatEl.scrollTop=chatEl.scrollHeight;
   aplicarFoto();
 }
 
-function openDrawer(){drawer.classList.add("open");scrim.classList.add("open");}
-function closeDrawer(){drawer.classList.remove("open");if(!sheet.classList.contains("open"))scrim.classList.remove("open");}
+function anyOpen(){return sheet.classList.contains("open")||cfg.classList.contains("open")||drawer.classList.contains("open");}
+function syncScrim(){scrim.classList.toggle("open",anyOpen());}
+function openDrawer(){drawer.classList.add("open");syncScrim();}
+function closeDrawer(){drawer.classList.remove("open");syncScrim();}
 function showSheet(msg){
   $("#sheetmsg").textContent=msg||"Elige qué cerebro usa Nova. Los que ya descargaste funcionan sin internet.";
-  renderSheet();sheet.classList.add("open");scrim.classList.add("open");
+  renderSheet();sheet.classList.add("open");syncScrim();
 }
-function closeSheet(){sheet.classList.remove("open");if(!drawer.classList.contains("open"))scrim.classList.remove("open");}
+function closeSheet(){sheet.classList.remove("open");syncScrim();}
+function openCfg(){fillCfg();cfg.classList.add("open");syncScrim();}
+function closeCfg(){cfg.classList.remove("open");syncScrim();}
 
 function renderList(){
   const L=$("#list");L.innerHTML="";
@@ -217,8 +305,36 @@ function selectModel(id){
   data.model=id;save();closeSheet();activate(false);
 }
 
+function renderMem(){
+  const L=$("#memlist");L.innerHTML="";
+  if(!data.mem.length){
+    const p=document.createElement("p");p.className="note";
+    p.textContent="Nova aún no recuerda nada tuyo.";L.appendChild(p);return;
+  }
+  data.mem.forEach((f,i)=>{
+    const r=document.createElement("div");r.className="mem";
+    const t=document.createElement("span");t.textContent=f;
+    const x=document.createElement("button");x.type="button";x.textContent="✕";
+    x.onclick=()=>{data.mem.splice(i,1);memChanged();renderMem();};
+    r.append(t,x);L.appendChild(r);
+  });
+}
+function memChanged(){save();ctxChat=null;}
+function addMem(f){
+  f=(f||"").trim().slice(0,160);
+  if(!f)return false;
+  if(data.mem.length>=20){toast("La memoria está llena (20 cosas). Borra alguna.");return false;}
+  data.mem.push(f);memChanged();return true;
+}
+function fillCfg(){
+  $("#instr").value=data.instr||"";
+  $("#pitch").value=data.pitch||1;
+  $("#pv").textContent=(parseFloat(data.pitch)||1).toFixed(1);
+  renderMem();
+}
+
 function activate(excludeLast){
-  let m=models.find(x=>x.id===data.model);
+  const m=models.find(x=>x.id===data.model);
   if(!m||m.state!=="ready"){
     const r=models.find(x=>x.state==="ready");
     if(r){data.model=r.id;save();}
@@ -227,90 +343,23 @@ function activate(excludeLast){
   ready=false;loadingText="cargando...";refreshHeader();
   const c=chat();
   const hist=c?c.msgs.filter(x=>x.content):[];
-  B.startChat(data.model,JSON.stringify(excludeLast?hist.slice(0,-1):hist));
+  B.startChat(data.model,JSON.stringify(excludeLast?hist.slice(0,-1):hist),extra());
 }
 
-function enviar(){
-  const t=box.value.trim();
-  if(!t||busy||!ready)return;
-  box.value="";crecer();
+function promptWeb(q,res){
+  const f=new Date().toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"});
+  let s="Hoy es "+f+". Resultados de búsqueda en internet:\n";
+  res.forEach((r,i)=>{s+=(i+1)+". "+r.t+": "+r.s+"\n";});
+  s+="\nUsando solo esos resultados, responde en español y de forma breve a esto: "+q;
+  return s;
+}
+
+function respuestaLocal(t,r){
   const c=chat();
   const w=document.querySelector(".welcome");if(w)w.remove();
+  quitarRegen();
   c.msgs.push({role:"user",content:t});
+  const m={role:"assistant",content:r};c.msgs.push(m);
   if(c.title==="Nuevo chat")c.title=t.length>30?t.slice(0,30)+"…":t;
-  c.ts=Date.now();
-  data.chats=[c].concat(data.chats.filter(x=>x!==c));
-  bubble("user",t);cur=bubble("bot","");cur.classList.add("typing");
-  busy=true;refreshHeader();renderList();save();
-  if(ctxChat!==data.current||ctxModel!==data.model){afterReady=()=>B.send(t);activate(true);}
-  else B.send(t);
-}
-function crecer(){box.style.height="auto";box.style.height=Math.min(box.scrollHeight,120)+"px";}
-
-window.novaStatus=m=>{loadingText=m;refreshHeader();};
-window.novaReady=()=>{
-  ready=true;ctxChat=data.current;ctxModel=data.model;loadingText="";
-  if(afterReady){const f=afterReady;afterReady=null;f();}
-  else busy=false;
-  refreshHeader();
-};
-window.novaPartial=t=>{if(cur){cur.classList.remove("typing");cur.textContent=t;chatEl.scrollTop=chatEl.scrollHeight;}};
-window.novaDone=t=>{
-  const c=chat();
-  if(cur){
-    cur.classList.remove("typing");
-    if(t&&t.trim()){if(c)c.msgs.push({role:"assistant",content:t.trim()});}
-    else if(!cur.textContent)cur.textContent="…";
-    cur=null;
-  }
-  busy=false;save();refreshHeader();
-};
-window.novaError=m=>{
-  toast(m);
-  if(cur){cur.classList.remove("typing");cur.textContent="⚠️ "+m;cur=null;}
-  busy=false;afterReady=null;
-  if(!ready)loadingText="error";
-  refreshHeader();
-};
-window.novaNotice=m=>{toast(m);};
-window.novaRebuild=()=>{if(!busy)activate(false);};
-window.novaModels=j=>{try{models=JSON.parse(j);}catch(e){}renderSheet();refreshHeader();};
-window.novaProgress=(id,p)=>{const m=models.find(x=>x.id===id);if(m){m.state="downloading";m.pct=p;}renderSheet();refreshHeader();};
-window.novaDownloaded=id=>{
-  if(!ready&&!busy){data.model=id;save();closeSheet();activate(false);}
-  else toast("Modelo listo para usar");
-  renderSheet();
-};
-window.novaNeedModel=()=>{
-  try{models=JSON.parse(B.getModels());}catch(e){}
-  showSheet("Descarga un modelo para que Nova pueda pensar. Se hace una sola vez y después funciona sin internet.");
-};
-window.novaBack=()=>{
-  if(sheet.classList.contains("open")){closeSheet();return true;}
-  if(drawer.classList.contains("open")){closeDrawer();return true;}
-  return false;
-};
-
-$("#form").addEventListener("submit",e=>{e.preventDefault();enviar();});
-box.addEventListener("input",crecer);
-$("#menu").onclick=openDrawer;
-$("#nuevo").onclick=newChat;
-$("#newchat").onclick=newChat;
-$("#modelbtn").onclick=()=>showSheet("");
-scrim.onclick=()=>{closeSheet();closeDrawer();};
-
-function init(){
-  if(!B){document.body.innerHTML='<p style="padding:24px">Abre esto desde la app Nova.</p>';return;}
-  try{const raw=B.loadData();if(raw){const d=JSON.parse(raw);if(d&&d.chats)data=d;}}catch(e){}
-  if(!data.chats.length)data.chats.push({id:uid(),title:"Nuevo chat",msgs:[],ts:Date.now()});
-  if(!chat())data.current=data.chats[0].id;
-  if(!data.model)data.model="nova";
-  try{models=JSON.parse(B.getModels());}catch(e){models=[];}
-  B.begin();
-  renderChat();renderList();renderSheet();refreshHeader();
-  activate(false);
-}
-init();
-</script>
-</body>
-</html>
+  c.ts=Date.now();data.chats=[c].concat(data.chats.filter(x=>x!==c));
+  bubble("user",t);bubble("bot",r);addA
