@@ -45,7 +45,6 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLDecoder
-import java.net.URLEncoder
 import java.util.Locale
 
 private data class NovaModel(
@@ -77,6 +76,19 @@ private val MODELS = listOf(
         1117,
     ),
 )
+
+private const val UA_WIKI = "NovaApp/1.0 (app personal)"
+private const val UA_WEB = "Mozilla/5.0 (Android 14; Mobile) Chrome/124.0"
+private val RE_TAG = Regex("<[^>]+>")
+private val RE_LINK = Regex(
+    "<a[^>]*class=\"result__a\"[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>",
+    RegexOption.DOT_MATCHES_ALL,
+)
+private val RE_SNIP = Regex(
+    "<a[^>]*class=\"result__snippet\"[^>]*>(.*?)</a>",
+    RegexOption.DOT_MATCHES_ALL,
+)
+private val RE_UDDG = Regex("uddg=([^\u0026]+)")
 
 class NovaActivity : ComponentActivity() {
 
@@ -112,7 +124,8 @@ class NovaActivity : ComponentActivity() {
 
     private val speechLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-            val text = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            val list = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val text = list?.firstOrNull()
             if (res.resultCode == RESULT_OK && !text.isNullOrBlank()) {
                 js("novaHeard", text)
             } else {
@@ -127,7 +140,8 @@ class NovaActivity : ComponentActivity() {
 
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val loc = if (Locale.getDefault().language == "es") Locale.getDefault() else Locale("es", "ES")
+                val def = Locale.getDefault()
+                val loc = if (def.language == "es") def else Locale("es", "ES")
                 tts?.setLanguage(loc)
                 ttsReady = true
             }
@@ -138,7 +152,10 @@ class NovaActivity : ComponentActivity() {
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+            override fun shouldOverrideUrlLoading(
+                view: WebView,
+                request: WebResourceRequest,
+            ): Boolean {
                 val u = request.url
                 if (u.scheme == "http" || u.scheme == "https") {
                     try {
@@ -313,7 +330,8 @@ class NovaActivity : ComponentActivity() {
 
     private fun startListening() {
         val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        val free = RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, free)
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES")
         i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla con Nova")
         i.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
@@ -355,8 +373,10 @@ class NovaActivity : ComponentActivity() {
         if (id < 0) return 0
         dm.query(DownloadManager.Query().setFilterById(id)).use { c ->
             if (c.moveToFirst()) {
-                val done = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-                var total = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                val colDone = c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                val colTotal = c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+                val done = c.getLong(colDone)
+                var total = c.getLong(colTotal)
                 if (total <= 0) total = m.sizeMb * 1_000_000L
                 return (done * 100 / total).toInt().coerceIn(0, 100)
             }
@@ -418,7 +438,8 @@ class NovaActivity : ComponentActivity() {
                         if (state == "ready") {
                             js("novaDownloaded", m.id)
                         } else {
-                            js("novaNotice", "La descarga de " + m.name + " no terminó. Inténtalo de nuevo.")
+                            val msg = "La descarga falló: " + m.name
+                            js("novaNotice", msg)
                         }
                     }
                 }
@@ -434,7 +455,8 @@ class NovaActivity : ComponentActivity() {
             js0("novaNeedModel()")
             return
         }
-        val sp = if (extra.isBlank()) systemPrompt else systemPrompt + " " + extra.trim().take(1500)
+        val more = extra.trim().take(1500)
+        val sp = if (more.isEmpty()) systemPrompt else systemPrompt + " " + more
         reloadJob?.cancel()
         reloadJob = scope.launch {
             engineLock.withLock {
@@ -492,7 +514,11 @@ class NovaActivity : ComponentActivity() {
         }
         while (keep.isNotEmpty() && keep[0].first != "user") keep.removeAt(0)
         for (p in keep) {
-            if (p.first == "user") llm.addUserMessage(p.second) else llm.addAssistantMessage(p.second)
+            if (p.first == "user") {
+                llm.addUserMessage(p.second)
+            } else {
+                llm.addAssistantMessage(p.second)
+            }
         }
     }
 
@@ -533,7 +559,9 @@ class NovaActivity : ComponentActivity() {
                     input.use { i -> tmp.outputStream().use { o -> i.copyTo(o) } }
                     val dest = modelFile(m)
                     dest.delete()
-                    if (!tmp.renameTo(dest)) throw Exception("No se pudo guardar el modelo")
+                    if (!tmp.renameTo(dest)) {
+                        throw Exception("No se pudo guardar")
+                    }
                 }
                 js("novaModels", modelsJson())
                 js("novaDownloaded", m.id)
@@ -546,24 +574,4 @@ class NovaActivity : ComponentActivity() {
         }
     }
 
-    private fun httpGet(url: String, ua: String): String {
-        val c = URL(url).openConnection() as HttpURLConnection
-        c.connectTimeout = 8000
-        c.readTimeout = 10000
-        c.setRequestProperty("User-Agent", ua)
-        c.setRequestProperty("Accept-Language", "es-ES,es;q=0.9")
-        try {
-            return c.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            c.disconnect()
-        }
-    }
-
-    private fun cleanHtml(s: String): String =
-        Html.fromHtml(s.replace(Regex("<[^>]+>"), ""), Html.FROM_HTML_MODE_LEGACY)
-            .toString()
-            .replace("\n", " ")
-            .trim()
-
-    private fun wikiSearch(q: String): List<Hit> {
-        val url = "https://es.wikipedia.org/w/api.php?action=query&gener
+    p
