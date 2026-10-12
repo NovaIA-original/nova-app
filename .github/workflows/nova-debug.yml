@@ -14,7 +14,31 @@ jobs:
       - name: Usar llave de firma fija
         run: |
           mkdir -p ~/.android
-          cp nova-debug.keystore ~/.android/debug.keystore
+          cat > k.b64 << 'EOF'
+          MIIDwgIBAzCCA3sGCSqGSIb3DQEHAaCCA2wEggNoMIIDZDCB8QYJKoZIhvcNAQcB
+          oIHjBIHgMIHdMIHaBgsqhkiG9w0BDAoBAqB3MHUwKQYKKoZIhvcNAQwBAzAbBBTn
+          phpSOM3StTXA6PD3hS3vqL6gHAIDAMNQBEgDJTH0ENzHMhC/a8k6gCWWKCuGibTf
+          u4Sk8A83iSM1pge4l04020Srk4p0WoYddV7HThRcoo1vglWMB+BVI6waok2X01PN
+          gTYxUjAtBgkqhkiG9w0BCRQxIB4eAGEAbgBkAHIAbwBpAGQAZABlAGIAdQBnAGsA
+          ZQB5MCEGCSqGSIb3DQEJFTEUBBJUaW1lIDE3OTE3NjkzNzY1ODIwggJsBgkqhkiG
+          9w0BBwagggJdMIICWQIBADCCAlIGCSqGSIb3DQEHATApBgoqhkiG9w0BDAEGMBsE
+          FBeAPovyw4FzULQl2+o9RPjJjEf0AgMAw1CAggIYoMQPBYl0co7zjx9V83bqcDbM
+          inc5UJs9pj/BrowtSC4BwHGKDSGsht7nxgM6QtqNTXxnf8zxgV8cjCr35GNdXLli
+          4ddOBmue5whVa5ayJYH67f/ekxRoI8h41zaNYaAvccNYt7Wk1UB/6e9g2A75tbZ7
+          PpnZgRF4mHyzUUUPkdCyxEZLCKiBlQ2CQBs0yNeaG4X+LTykpRGEI22uDsFMiPBx
+          QeItCJHRmlSfYcLfN7BHJp2EM5yDaq0hBvLSjplKg7dHvzVPnAuKXkNZHOjDMqVm
+          zhurQn88XjC42F2bqNogREIDzbDumLWOlqZrIjaD02KlAp8I3ILVMXmZ2bpTtDF3
+          UaT9tzKF1rmnNKZgI9HN+USF0DzRvb9/s37Fo3oKYtBaecwo67GRHOgnQVcutiUv
+          6o5n3+bEe10jo9+EX11I5p4SF719TD4b9LjOsKZQFUmgaKWE8PB5nmr3YbfYGuY6
+          sgv6LkmfrT3dmqesuaW5HbdONXkEfBCenFoTVQz2A0Ihh1PIX+iKth/gYSFRFdM9
+          MK4AV8LtdyF3pN1axufHHX6vSFs0rPEoRSmz+cWJgpUUT4AM/BvNkHfxyice7Wq3
+          GS0OetsBrNQY69FHcTRV00jsJoy+cRJcuzt0UBxrS66d6BYTM7cdhaHROH+pF3v3
+          Vce4KNJY45bbcLwmv8VffWfs+94MU4lwr+ag39gk6pwa8cMRbNMwPjAhMAkGBSsO
+          AwIaBQAEFEPfS0inH1q9kp0SBlXvU+wz/ka0BBRYSBsFANj7kr2t2dGZw0XM8L7Z
+          OAIDAYag
+          EOF
+          base64 -d k.b64 > ~/.android/debug.keystore
+          rm k.b64
 
       - uses: actions/setup-java@v4
         with:
