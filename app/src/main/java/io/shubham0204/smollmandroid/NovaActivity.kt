@@ -2,12 +2,19 @@ package io.shubham0204.smollmandroid
 
 import android.annotation.SuppressLint
 import android.app.DownloadManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
+import android.text.Html
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -23,6 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -34,6 +42,11 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.util.Locale
 
 private data class NovaModel(
     val id: String,
@@ -43,6 +56,8 @@ private data class NovaModel(
     val url: String,
     val sizeMb: Int,
 )
+
+private data class Hit(val title: String, val snippet: String, val url: String)
 
 private val MODELS = listOf(
     NovaModel(
@@ -81,6 +96,8 @@ class NovaActivity : ComponentActivity() {
     private var pollJob: Job? = null
     private val active = mutableSetOf<String>()
     private var pickId: String? = null
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
 
     private val modelsDir: File by lazy { getExternalFilesDir(null) ?: filesDir }
     private val dm by lazy { getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager }
@@ -93,16 +110,46 @@ class NovaActivity : ComponentActivity() {
             if (uri != null && id != null) copyModel(id, uri)
         }
 
+    private val speechLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+            val text = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (res.resultCode == RESULT_OK && !text.isNullOrBlank()) {
+                js("novaHeard", text)
+            } else {
+                js0("novaHeardNone()")
+            }
+        }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val loc = if (Locale.getDefault().language == "es") Locale.getDefault() else Locale("es", "ES")
+                tts?.setLanguage(loc)
+                ttsReady = true
+            }
+        }
+
         web = WebView(this)
         web.setBackgroundColor(Color.parseColor("#0F1115"))
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
-        web.webViewClient = WebViewClient()
+        web.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                val u = request.url
+                if (u.scheme == "http" || u.scheme == "https") {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, u))
+                    } catch (e: Exception) {
+                    }
+                    return true
+                }
+                return false
+            }
+        }
         web.addJavascriptInterface(Bridge(), "NovaBridge")
 
         val root = FrameLayout(this)
@@ -144,6 +191,11 @@ class NovaActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()
+        try {
+            tts?.stop()
+            tts?.shutdown()
+        } catch (e: Exception) {
+        }
         try {
             llm.close()
         } catch (e: Exception) {
@@ -195,13 +247,43 @@ class NovaActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
-        fun startChat(id: String, history: String) {
-            runOnUiThread { openChat(id, history) }
+        fun startChat(id: String, history: String, extra: String) {
+            runOnUiThread { openChat(id, history, extra) }
         }
 
         @JavascriptInterface
         fun send(text: String) {
             runOnUiThread { ask(text) }
+        }
+
+        @JavascriptInterface
+        fun stop() {
+            runOnUiThread { generating?.cancel() }
+        }
+
+        @JavascriptInterface
+        fun search(q: String) {
+            runOnUiThread { searchWeb(q) }
+        }
+
+        @JavascriptInterface
+        fun listen() {
+            runOnUiThread { startListening() }
+        }
+
+        @JavascriptInterface
+        fun speak(text: String, pitch: Double) {
+            runOnUiThread { speakText(text, pitch.toFloat()) }
+        }
+
+        @JavascriptInterface
+        fun stopSpeak() {
+            runOnUiThread { tts?.stop() }
+        }
+
+        @JavascriptInterface
+        fun copy(text: String) {
+            runOnUiThread { copyText(text) }
         }
     }
 
@@ -214,6 +296,32 @@ class NovaActivity : ComponentActivity() {
             .replace("\u2028", "\\u2028")
             .replace("\u2029", "\\u2029")
         web.evaluateJavascript("$fn($q)", null)
+    }
+
+    private fun copyText(text: String) {
+        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("Nova", text))
+    }
+
+    private fun speakText(text: String, pitch: Float) {
+        val t = tts ?: return
+        if (!ttsReady) return
+        t.setPitch(pitch.coerceIn(0.5f, 2.0f))
+        val clean = text.replace(Regex("[*_`#>]"), "").take(3500)
+        t.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "nova")
+    }
+
+    private fun startListening() {
+        val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES")
+        i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla con Nova")
+        i.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+        try {
+            speechLauncher.launch(i)
+        } catch (e: Exception) {
+            js("novaNotice", "Tu celular no tiene reconocimiento de voz disponible")
+        }
     }
 
     private fun modelFile(m: NovaModel) = File(modelsDir, m.file)
@@ -320,12 +428,13 @@ class NovaActivity : ComponentActivity() {
         }
     }
 
-    private fun openChat(modelId: String, history: String) {
+    private fun openChat(modelId: String, history: String, extra: String) {
         val m = MODELS.firstOrNull { it.id == modelId }
         if (m == null || refreshDownload(m) != "ready") {
             js0("novaNeedModel()")
             return
         }
+        val sp = if (extra.isBlank()) systemPrompt else systemPrompt + " " + extra.trim().take(1500)
         reloadJob?.cancel()
         reloadJob = scope.launch {
             engineLock.withLock {
@@ -344,7 +453,7 @@ class NovaActivity : ComponentActivity() {
                         SmolLM.InferenceParams(contextSize = 3072L, numThreads = 4),
                     )
                     withContext(Dispatchers.Default) {
-                        llm.addSystemPrompt(systemPrompt)
+                        llm.addSystemPrompt(sp)
                         replay(history)
                     }
                     loaded = true
@@ -436,4 +545,25 @@ class NovaActivity : ComponentActivity() {
             }
         }
     }
-}
+
+    private fun httpGet(url: String, ua: String): String {
+        val c = URL(url).openConnection() as HttpURLConnection
+        c.connectTimeout = 8000
+        c.readTimeout = 10000
+        c.setRequestProperty("User-Agent", ua)
+        c.setRequestProperty("Accept-Language", "es-ES,es;q=0.9")
+        try {
+            return c.inputStream.bufferedReader().use { it.readText() }
+        } finally {
+            c.disconnect()
+        }
+    }
+
+    private fun cleanHtml(s: String): String =
+        Html.fromHtml(s.replace(Regex("<[^>]+>"), ""), Html.FROM_HTML_MODE_LEGACY)
+            .toString()
+            .replace("\n", " ")
+            .trim()
+
+    private fun wikiSearch(q: String): List<Hit> {
+        val url = "https://es.wikipedia.org/w/api.php?action=query&gener
