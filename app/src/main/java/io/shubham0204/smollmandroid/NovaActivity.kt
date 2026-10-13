@@ -11,7 +11,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
-import android.text.Html
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
@@ -42,53 +41,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLDecoder
 import java.util.Locale
-
-private data class NovaModel(
-    val id: String,
-    val name: String,
-    val desc: String,
-    val file: String,
-    val url: String,
-    val sizeMb: Int,
-)
-
-private data class Hit(val title: String, val snippet: String, val url: String)
-
-private val MODELS = listOf(
-    NovaModel(
-        "rapida",
-        "Nova Rápida",
-        "Responde más rápido",
-        "qwen2.5-0.5b-instruct-q4_k_m.gguf",
-        "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
-        490,
-    ),
-    NovaModel(
-        "nova",
-        "Nova",
-        "Más lista, un poco más lenta",
-        "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-        "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-        1117,
-    ),
-)
-
-private const val UA_WIKI = "NovaApp/1.0 (app personal)"
-private const val UA_WEB = "Mozilla/5.0 (Android 14; Mobile) Chrome/124.0"
-private val RE_TAG = Regex("<[^>]+>")
-private val RE_LINK = Regex(
-    "<a[^>]*class=\"result__a\"[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>",
-    RegexOption.DOT_MATCHES_ALL,
-)
-private val RE_SNIP = Regex(
-    "<a[^>]*class=\"result__snippet\"[^>]*>(.*?)</a>",
-    RegexOption.DOT_MATCHES_ALL,
-)
-private val RE_UDDG = Regex("uddg=([^\u0026]+)")
 
 class NovaActivity : ComponentActivity() {
 
@@ -476,7 +429,7 @@ class NovaActivity : ComponentActivity() {
                     )
                     withContext(Dispatchers.Default) {
                         llm.addSystemPrompt(sp)
-                        replay(history)
+                        replayHistory(llm, history)
                     }
                     loaded = true
                     js0("novaReady()")
@@ -485,39 +438,6 @@ class NovaActivity : ComponentActivity() {
                 } catch (e: Exception) {
                     js("novaError", e.message ?: "No se pudo cargar el modelo")
                 }
-            }
-        }
-    }
-
-    private fun replay(history: String) {
-        val arr = try {
-            JSONArray(history)
-        } catch (e: Exception) {
-            return
-        }
-        val all = ArrayList<Pair<String, String>>()
-        for (i in 0 until arr.length()) {
-            val o = arr.optJSONObject(i) ?: continue
-            val role = o.optString("role")
-            val content = o.optString("content")
-            if (content.isNotEmpty() && (role == "user" || role == "assistant")) {
-                all.add(Pair(role, content))
-            }
-        }
-        var budget = 3000
-        val keep = ArrayList<Pair<String, String>>()
-        for (i in all.indices.reversed()) {
-            val len = all[i].second.length
-            if (len > budget) break
-            budget -= len
-            keep.add(0, all[i])
-        }
-        while (keep.isNotEmpty() && keep[0].first != "user") keep.removeAt(0)
-        for (p in keep) {
-            if (p.first == "user") {
-                llm.addUserMessage(p.second)
-            } else {
-                llm.addAssistantMessage(p.second)
             }
         }
     }
@@ -574,4 +494,34 @@ class NovaActivity : ComponentActivity() {
         }
     }
 
-    p
+    private fun searchWeb(q: String) {
+        scope.launch {
+            val hits = withContext(Dispatchers.IO) {
+                val w = async {
+                    try {
+                        wikiSearch(q)
+                    } catch (e: Exception) {
+                        emptyList<Hit>()
+                    }
+                }
+                val d = async {
+                    try {
+                        webSearch(q)
+                    } catch (e: Exception) {
+                        emptyList<Hit>()
+                    }
+                }
+                (w.await() + d.await()).distinctBy { it.url }.take(5)
+            }
+            val arr = JSONArray()
+            for (h in hits) {
+                val o = JSONObject()
+                o.put("t", h.title)
+                o.put("s", h.snippet)
+                o.put("u", h.url)
+                arr.put(o)
+            }
+            js("novaResults", arr.toString())
+        }
+    }
+}
