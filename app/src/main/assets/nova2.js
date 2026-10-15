@@ -11,11 +11,20 @@ function activate(excludeLast){
   B.startChat(data.model,JSON.stringify(excludeLast?hist.slice(0,-1):hist),extra());
 }
 
+function limpiar(q){
+  let s=q.replace(/[¿?¡!]/g," ");
+  s=s.replace(/\b(dime|dímelo|busca|búscame|buscame|investiga|en internet|por internet|por favor|cuéntame|explícame)\b/gi," ");
+  s=s.replace(/\b(quién|quien|qué|que|cuál|cual|cómo|como|cuándo|cuando|dónde|donde)\s+(es|son|fue|era|significa|pasó|paso)\b/gi," ");
+  s=s.replace(/\s+/g," ").trim();
+  return s.length>=3?s:q;
+}
+
 function promptWeb(q,res){
   const f=new Date().toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"});
-  let s="Hoy es "+f+". Resultados de búsqueda en internet:\n";
-  res.forEach((r,i)=>{s+=(i+1)+". "+r.t+": "+r.s+"\n";});
-  s+="\nUsando solo esos resultados, responde en español y de forma breve a esto: "+q;
+  let s="Pregunta: "+q+"\nHoy es "+f+".\nInformación encontrada en internet:\n";
+  res.forEach((r,i)=>{s+=(i+1)+") "+r.t+": "+r.s+"\n";});
+  s+="\nResponde en español, en 2 o 3 frases, a la pregunta: "+q;
+  s+="\nUsa solo esa información. Si no alcanza para responder, di que no lo encontraste.";
   return s;
 }
 
@@ -44,7 +53,7 @@ function enviarTexto(t){
   busy=true;lastSrc=[];refreshHeader();renderList();save();
   B.stopSpeak();
   const go=()=>{
-    if(data.web){awaitingWeb=true;pendingQ=t;gen=false;cur.textContent="Buscando en internet";refreshHeader();B.search(t);}
+    if(data.web){awaitingWeb=true;pendingQ=t;gen=false;cur.textContent="Buscando en internet";refreshHeader();B.search(limpiar(t));}
     else{gen=true;B.send(t);}
   };
   if(ctxChat!==data.current||ctxModel!==data.model){afterReady=go;activate(true);}
@@ -96,7 +105,7 @@ window.novaResults=j=>{
   let r=[];try{r=JSON.parse(j);}catch(e){}
   lastSrc=r.map(x=>({t:x.t,u:x.u}));
   if(!r.length)toast("No pude buscar en internet, respondo con lo que sé");
-  if(cur)cur.textContent="";
+  if(cur)cur.textContent="Leyendo resultados";
   gen=true;
   refreshHeader();
   B.send(r.length?promptWeb(pendingQ,r):pendingQ);
@@ -143,8 +152,14 @@ window.novaNeedModel=()=>{
   try{models=JSON.parse(B.getModels());}catch(e){}
   showSheet("Descarga un modelo para que Nova pueda pensar. Se hace una sola vez y después funciona sin internet.");
 };
+let escuchando=false;
+window.novaListening=on=>{
+  escuchando=(on==="1");
+  $("#mic").style.background=escuchando?"#c0392b":"none";
+  if(escuchando)toast("Escuchando... habla ahora");
+};
+window.novaPartialHeard=t=>{box.value=t;crecer();};
 window.novaHeard=t=>{viaVoz=true;box.value=t;crecer();enviar();};
-window.novaHeardNone=()=>{toast("No te escuché, intenta de nuevo");};
 window.novaBack=()=>{
   if(cfg.classList.contains("open")){closeCfg();return true;}
   if(sheet.classList.contains("open")){closeSheet();return true;}
@@ -155,7 +170,11 @@ window.novaBack=()=>{
 function renderChips(){$("#chipWeb").classList.toggle("on",!!data.web);$("#chipVoz").classList.toggle("on",!!data.speak);}
 $("#chipWeb").onclick=()=>{data.web=!data.web;save();renderChips();toast(data.web?"Búsqueda en internet activada":"Nova responde sin internet");};
 $("#chipVoz").onclick=()=>{data.speak=!data.speak;save();renderChips();if(!data.speak)B.stopSpeak();toast(data.speak?"Nova responderá en voz alta":"Voz desactivada");};
-$("#mic").onclick=()=>{if(busy||!ready){toast("Espera un momento");return;}B.listen();};
+$("#mic").onclick=()=>{
+  if(escuchando){B.stopListen();return;}
+  if(busy||!ready){toast("Espera un momento");return;}
+  B.listen();
+};
 $("#form").addEventListener("submit",e=>{e.preventDefault();enviar();});
 box.addEventListener("input",crecer);
 $("#menu").onclick=openDrawer;
