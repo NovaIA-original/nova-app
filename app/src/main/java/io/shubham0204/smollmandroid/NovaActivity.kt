@@ -9,7 +9,6 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
@@ -38,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -75,16 +75,7 @@ class NovaActivity : ComponentActivity() {
             if (uri != null && id != null) copyModel(id, uri)
         }
 
-    private val speechLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-            val list = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            val text = list?.firstOrNull()
-            if (res.resultCode == RESULT_OK && !text.isNullOrBlank()) {
-                js("novaHeard", text)
-            } else {
-                js0("novaHeardNone()")
-            }
-        }
+    private val mic = NovaMic(this) { fn, arg -> js(fn, arg) }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -161,6 +152,7 @@ class NovaActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()
+        mic.destroy()
         try {
             tts?.stop()
             tts?.shutdown()
@@ -238,7 +230,12 @@ class NovaActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun listen() {
-            runOnUiThread { startListening() }
+            runOnUiThread { mic.start() }
+        }
+
+        @JavascriptInterface
+        fun stopListen() {
+            runOnUiThread { mic.stop() }
         }
 
         @JavascriptInterface
@@ -279,20 +276,6 @@ class NovaActivity : ComponentActivity() {
         t.setPitch(pitch.coerceIn(0.5f, 2.0f))
         val clean = text.replace(Regex("[*_`#>]"), "").take(3500)
         t.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "nova")
-    }
-
-    private fun startListening() {
-        val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-        val free = RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, free)
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES")
-        i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla con Nova")
-        i.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-        try {
-            speechLauncher.launch(i)
-        } catch (e: Exception) {
-            js("novaNotice", "Tu celular no tiene reconocimiento de voz disponible")
-        }
     }
 
     private fun modelFile(m: NovaModel) = File(modelsDir, m.file)
@@ -496,28 +479,30 @@ class NovaActivity : ComponentActivity() {
 
     private fun searchWeb(q: String) {
         scope.launch {
-            val hits = withContext(Dispatchers.IO) {
-                val w = async {
-                    try {
-                        wikiSearch(q)
-                    } catch (e: Exception) {
-                        emptyList<Hit>()
+            val hits = withTimeoutOrNull(9000L) {
+                withContext(Dispatchers.IO) {
+                    val w = async {
+                        try {
+                            wikiSearch(q)
+                        } catch (e: Exception) {
+                            emptyList<Hit>()
+                        }
                     }
-                }
-                val d = async {
-                    try {
-                        webSearch(q)
-                    } catch (e: Exception) {
-                        emptyList<Hit>()
+                    val d = async {
+                        try {
+                            webSearch(q)
+                        } catch (e: Exception) {
+                            emptyList<Hit>()
+                        }
                     }
+                    (w.await().take(1) + d.await().take(2)).distinctBy { it.url }
                 }
-                (w.await() + d.await()).distinctBy { it.url }.take(5)
-            }
+            } ?: emptyList()
             val arr = JSONArray()
             for (h in hits) {
                 val o = JSONObject()
-                o.put("t", h.title)
-                o.put("s", h.snippet)
+                o.put("t", h.title.take(80))
+                o.put("s", h.snippet.take(220))
                 o.put("u", h.url)
                 arr.put(o)
             }
