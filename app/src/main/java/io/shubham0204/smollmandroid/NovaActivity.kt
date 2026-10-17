@@ -77,6 +77,11 @@ class NovaActivity : ComponentActivity() {
 
     private val mic = NovaMic(this) { fn, arg -> js(fn, arg) }
 
+    private val imgPicker =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            if (uri != null) loadPhoto(uri)
+        }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -239,6 +244,11 @@ class NovaActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
+        fun pickImage() {
+            runOnUiThread { imgPicker.launch("image/*") }
+        }
+
+        @JavascriptInterface
         fun speak(text: String, pitch: Double) {
             runOnUiThread { speakText(text, pitch.toFloat()) }
         }
@@ -263,6 +273,19 @@ class NovaActivity : ComponentActivity() {
             .replace("\u2028", "\\u2028")
             .replace("\u2029", "\\u2029")
         web.evaluateJavascript("$fn($q)", null)
+    }
+
+    private fun loadPhoto(uri: Uri) {
+        scope.launch {
+            try {
+                val data = withContext(Dispatchers.IO) {
+                    prepareImage(this@NovaActivity, uri, 512)
+                }
+                js("novaImage", data)
+            } catch (e: Exception) {
+                js("novaNotice", e.message ?: "No se pudo leer la foto")
+            }
+        }
     }
 
     private fun copyText(text: String) {
