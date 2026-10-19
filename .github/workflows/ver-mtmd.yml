@@ -1,0 +1,25 @@
+name: Ver mtmd
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ver:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Ver version y funciones
+        run: |
+          echo "== VERSION =="
+          git -C llama.cpp log -1 --format="%H %cd" || true
+          echo "== tools =="
+          ls llama.cpp/tools || true
+          echo "== mtmd =="
+          ls llama.cpp/tools/mtmd || true
+          echo "== mtmd.h =="
+          grep -n -A4 "MTMD_API" llama.cpp/tools/mtmd/mtmd.h || true
+          echo "== mtmd-helper.h =="
+          grep -n -A4 "MTMD_API" llama.cpp/tools/mtmd/mtmd-helper.h || true
