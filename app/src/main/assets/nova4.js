@@ -113,7 +113,8 @@
     const c=chat();
     const w=document.querySelector(".welcome");if(w)w.remove();
     quitarRegen();
-    c.msgs.push({role:"user",content:"📷 "+texto});
+    const um={role:"user",content:"📷 "+texto};
+    c.msgs.push(um);
     if(c.title==="Nuevo chat")c.title="Foto: "+texto.slice(0,24);
     c.ts=Date.now();
     data.chats=[c].concat(data.chats.filter(x=>x!==c));
@@ -136,7 +137,7 @@
     bub.append(lab,bar,info,txt);
     busy=true;visionBusy=true;refreshHeader();renderList();save();
     const t0=Date.now(),est=data.visionMs||60000;
-    V={c,bub,lab,fill,info,txt,t0,est,first:0,tokens:0,stage:0};
+    V={c,bub,lab,fill,info,txt,t0,est,first:0,tokens:0,stage:0,um,q:texto};
     V.tm=setInterval(()=>{
       if(!V)return;
       const e=Date.now()-V.t0;
@@ -164,29 +165,27 @@
   };
   window.novaVisionDone=function(text){
     if(!V)return;
-    const v=V,out=String(text||"").trim(),ms=Date.now()-v.t0,tk=v.tokens;
+    const v=V,out=String(text||"").trim();
     if(!out){
       v.bub.textContent="No pude describir la foto. Intenta con otra.";
       cerrarVision();activate(false);return;
     }
-    v.bub.textContent=out;
-    const msg={role:"assistant",content:"[Foto] "+out};
-    v.c.msgs.push(msg);
-    const m=document.createElement("div");
-    m.style.cssText="font-size:11px;color:var(--muted);margin-top:6px";
-    m.textContent="⏱ "+fmt4(ms)+" · "+tk+" tokens · modelo de visión (en inglés)";
-    v.bub.appendChild(m);
-    addActs(msg,true);
-    const tr=document.createElement("button");
-    tr.type="button";tr.textContent="🇪🇸";
-    tr.onclick=()=>{
-      if(busy||!ready){toast("Espera a que Nova esté lista");return;}
-      box.value="Traduce al español: "+out;
-      enviar();
-    };
-    chatEl.lastElementChild.appendChild(tr);
-    cerrarVision();
-    activate(false);
+    v.um.desc=out;
+    clearInterval(v.tm);V=null;visionBusy=false;
+    v.bub.textContent="Nova está pensando…";
+    v.bub.classList.add("typing");
+    cur=v.bub;
+    const p="El usuario te mandó una foto. Descripción automática de la foto (en inglés): "+out+"\nMensaje del usuario: "+v.q+"\nResponde como Nova, en español, de forma breve y natural, hablando de lo que se ve en la foto.";
+    ready=false;ctxChat=null;
+    afterReady=()=>{gen=true;B.send(p);};
+    refreshHeader();
+    activate(true);
+  };
+  const _act=window.activate;
+  window.activate=function(ex){
+    const c=chat(),sw=[];
+    if(c)c.msgs.forEach(x=>{if(x.desc){sw.push([x,x.content]);x.content=x.content+" [Foto: "+x.desc+"]";}});
+    try{_act(ex);}finally{sw.forEach(p=>{p[0].content=p[1];});}
   };
   window.novaVisionError=function(msg){
     if(V)V.bub.textContent="No pude mirar la foto: "+msg;
