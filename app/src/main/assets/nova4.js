@@ -26,7 +26,7 @@
   function armar(){
     menu.innerHTML="";
     item("📷","Fotos",()=>{if(busy){toast("Espera un momento");return;}B.pickImage();},false);
-    item("📄","Archivos",()=>toast("Los archivos llegan pronto"),true);
+    item("📄","Archivos",()=>{if(busy){toast("Espera un momento");return;}B.pickFile();},false);
     item("🎞️","Video",()=>toast("El video llega después de las fotos"),true);
     item("🎤","Hablar con Nova",()=>$("#mic").click(),false);
     item("🔊","Voz de Nova: "+(data.speak?"activada":"apagada"),()=>$("#chipVoz").click(),false);
@@ -113,6 +113,9 @@
     const c=chat();
     const w=document.querySelector(".welcome");if(w)w.remove();
     quitarRegen();
+    const hist=c.msgs.filter(x=>x.content).slice(-4).map(x=>(x.role==="user"?"Usuario: ":"Nova: ")+x.content.slice(0,200)).join("\n");
+    const ex=(typeof extra==="function"?String(extra()||""):"").slice(0,600);
+    const prompt="Eres Nova, una asistente de IA amable y directa. Responde siempre en español, con frases cortas. "+ex+(hist?"\nConversación reciente:\n"+hist:"")+"\nMira la foto y responde a esto: "+texto;
     const um={role:"user",content:"📷 "+texto};
     c.msgs.push(um);
     if(c.title==="Nuevo chat")c.title="Foto: "+texto.slice(0,24);
@@ -137,7 +140,7 @@
     bub.append(lab,bar,info,txt);
     busy=true;visionBusy=true;refreshHeader();renderList();save();
     const t0=Date.now(),est=data.visionMs||60000;
-    V={c,bub,lab,fill,info,txt,t0,est,first:0,tokens:0,stage:0,um,q:texto};
+    V={c,bub,lab,fill,info,txt,t0,est,first:0,tokens:0,stage:0};
     V.tm=setInterval(()=>{
       if(!V)return;
       const e=Date.now()-V.t0;
@@ -146,7 +149,7 @@
       V.fill.style.width=p+"%";
       estado.textContent="mirando foto… "+p+"% · "+fmt4(e);
     },400);
-    B.describe(img,texto);
+    B.describe(img,prompt);
   };
   window.novaVisionStage=function(st,tk,partial){
     if(!V)return;
@@ -165,41 +168,84 @@
   };
   window.novaVisionDone=function(text){
     if(!V)return;
-    const v=V,out=String(text||"").trim();
+    const v=V,out=String(text||"").trim(),ms=Date.now()-v.t0,tk=v.tokens;
     if(!out){
-      v.bub.textContent="No pude describir la foto. Intenta con otra.";
-      cerrarVision();activate(false);return;
+      v.bub.textContent="No pude ver bien la foto. Intenta con otra.";
+      cerrarVision();ctxChat=null;return;
     }
-    v.um.desc=out;
-    clearInterval(v.tm);V=null;visionBusy=false;
-    v.bub.textContent="Nova está pensando…";
-    v.bub.classList.add("typing");
-    cur=v.bub;
-    const p="El usuario te mandó una foto. Descripción automática de la foto (en inglés): "+out+"\nMensaje del usuario: "+v.q+"\nResponde como Nova, en español, de forma breve y natural, hablando de lo que se ve en la foto.";
-    ready=false;ctxChat=null;
-    afterReady=()=>{gen=true;B.send(p);};
-    refreshHeader();
-    activate(true);
+    v.bub.textContent=out;
+    const msg={role:"assistant",content:out};
+    v.c.msgs.push(msg);
+    const m=document.createElement("div");
+    m.style.cssText="font-size:11px;color:var(--muted);margin-top:6px";
+    m.textContent="⏱ "+fmt4(ms)+" · "+tk+" tokens";
+    v.bub.appendChild(m);
+    addActs(msg,true);
+    if(data.speak&&B)B.speak(out,data.pitch||1);
+    cerrarVision();
+    ctxChat=null;
   };
   const _act=window.activate;
   window.activate=function(ex){
     const c=chat(),sw=[];
-    if(c)c.msgs.forEach(x=>{if(x.desc){sw.push([x,x.content]);x.content=x.content+" [Foto: "+x.desc+"]";}});
+    if(c)c.msgs.forEach(x=>{if(x.ctx){sw.push([x,x.content]);x.content=x.content+x.ctx;}});
     try{_act(ex);}finally{sw.forEach(p=>{p[0].content=p[1];});}
   };
   window.novaVisionError=function(msg){
     if(V)V.bub.textContent="No pude mirar la foto: "+msg;
     cerrarVision();
-    activate(false);
+    ctxChat=null;
   };
   window.novaVisionMissing=function(){
     if(V)V.bub.textContent="Falta descargar Nova Vista.";
     cerrarVision();
     showSheet("Para que Nova vea fotos descarga las 2 partes de Nova Vista (unos 640 MB en total).");
   };
+  let adj=null,chip=null;
+  function mostrarAdj(){
+    if(chip){chip.remove();chip=null;}
+    if(!adj)return;
+    chip=document.createElement("div");
+    chip.style.cssText="margin:0 12px 6px;padding:8px 12px;border-radius:12px;background:var(--bot);color:var(--text);font-size:13px;display:flex;justify-content:space-between;gap:8px";
+    const s1=document.createElement("span");s1.textContent="📎 "+adj.name+" · escribe tu pregunta y envía";
+    const x=document.createElement("span");x.textContent="✕";x.style.cursor="pointer";
+    x.onclick=()=>{adj=null;mostrarAdj();};
+    chip.append(s1,x);
+    $("footer").before(chip);
+  }
+  window.novaFile=function(j){
+    let o=null;try{o=JSON.parse(j);}catch(e){}
+    if(!o||!o.text)return;
+    adj=o;mostrarAdj();toast("Archivo listo");
+  };
+  function enviarArchivo(q){
+    const a=adj;adj=null;mostrarAdj();
+    const c=chat();
+    const w=document.querySelector(".welcome");if(w)w.remove();
+    quitarRegen();
+    const shown="📎 "+a.name+" — "+q;
+    const um={role:"user",content:shown,ctx:"\n[Contenido del archivo «"+a.name+"»]\n"+a.text};
+    c.msgs.push(um);
+    if(c.title==="Nuevo chat")c.title=a.name.slice(0,30);
+    c.ts=Date.now();
+    data.chats=[c].concat(data.chats.filter(x=>x!==c));
+    bubble("user",shown);cur=bubble("bot","");cur.classList.add("typing");
+    busy=true;lastSrc=[];refreshHeader();renderList();save();
+    B.stopSpeak();
+    const p="Este es el contenido del archivo «"+a.name+"»:\n"+a.text+"\n\nResponde en español, de forma breve, a esto: "+q;
+    const go=()=>{gen=true;B.send(p);};
+    if(ctxChat!==data.current||ctxModel!==data.model){afterReady=go;activate(true);}
+    else go();
+  }
   const _e2=window.enviar;
   window.enviar=function(){
     if(visionBusy){B.cancelVision();toast("Cancelando…");return;}
+    if(adj&&!busy&&ready){
+      const q=box.value.trim()||"Resume este archivo";
+      box.value="";crecer();
+      enviarArchivo(q);
+      return;
+    }
     _e2();
   };
 })();
