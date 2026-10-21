@@ -58,7 +58,7 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace > build.log 2>&1 || { grep -nE "error:|CMake Error|What went wrong|undefined reference|Execution failed" -A5 build.log | head -80; exit 1; }
 
       - uses: actions/upload-artifact@v4
         with:
