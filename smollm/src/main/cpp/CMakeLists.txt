@@ -10,12 +10,30 @@ set(COMMON_DIR ${LLAMA_DIR}/common)
 set(VENDOR_DIR ${LLAMA_DIR}/vendor)
 set(MTMD_DIR ${LLAMA_DIR}/tools/mtmd)
 
-# --- Nova: motor de imagenes (mtmd), como libreria estatica ---
-set(NOVA_SHARED_BACKUP ${BUILD_SHARED_LIBS})
-set(BUILD_SHARED_LIBS OFF)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-add_subdirectory(${MTMD_DIR} mtmd EXCLUDE_FROM_ALL)
-set(BUILD_SHARED_LIBS ${NOVA_SHARED_BACKUP})
+# --- Nova: motor de imagenes (mtmd) compilado directo, sin su CMakeLists ---
+file(GLOB MTMD_MODEL_SRCS ${MTMD_DIR}/models/*.cpp)
+add_library(
+        mtmd
+        STATIC
+        ${MTMD_DIR}/mtmd.cpp
+        ${MTMD_DIR}/mtmd-helper.cpp
+        ${MTMD_DIR}/mtmd-image.cpp
+        ${MTMD_DIR}/mtmd-audio.cpp
+        ${MTMD_DIR}/clip.cpp
+        ${MTMD_MODEL_SRCS}
+)
+target_include_directories(
+        mtmd
+        PUBLIC
+        ${MTMD_DIR}
+        ${COMMON_DIR}
+        ${GGML_DIR}/include
+        ${LLAMA_DIR}/include
+        ${VENDOR_DIR}
+)
+target_compile_features(mtmd PUBLIC cxx_std_17)
+set_target_properties(mtmd PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(mtmd PUBLIC llama ggml)
 
 # -fvisibility=hidden: hide all symbols by default
 # -fvisibility-inlines-hidden: hide all inline symbols by default
