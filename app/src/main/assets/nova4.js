@@ -25,7 +25,7 @@
   }
   function armar(){
     menu.innerHTML="";
-    item("📷","Fotos",()=>toast("Las fotos llegan cuando Nova tenga su motor de visión"),true);
+    item("📷","Fotos",()=>{if(busy){toast("Espera un momento");return;}B.pickImage();},false);
     item("📄","Archivos",()=>toast("Los archivos llegan pronto"),true);
     item("🎞️","Video",()=>toast("El video llega después de las fotos"),true);
     item("🎤","Hablar con Nova",()=>$("#mic").click(),false);
@@ -79,4 +79,128 @@
       estado.textContent="escribiendo… "+tokN+" tokens · "+sp+" tok/s · "+fmt4(e);
     }
   },300);
+  // ---------- visión local ----------
+  const _rs=window.renderSheet;
+  window.renderSheet=function(){
+    _rs();
+    document.querySelectorAll("#mlist .mrow").forEach(r=>{
+      const n=r.querySelector("b");
+      if(n&&n.textContent.indexOf("Nova Vista")===0){
+        r.querySelectorAll("button.mbtn").forEach(b=>{if(b.textContent==="Usar"){b.textContent="Listo";b.disabled=true;}});
+      }
+    });
+  };
+  const _nd=window.novaDownloaded;
+  window.novaDownloaded=function(id){
+    if(String(id).indexOf("vista")===0){toast("Descarga lista. Para fotos necesitas las 2 partes de Nova Vista");renderSheet();return;}
+    _nd(id);
+  };
+
+  let V=null;
+  function visionListo(){
+    const a=models.find(m=>m.id==="vista"),b=models.find(m=>m.id==="vista_mm");
+    return !!(a&&b&&a.state==="ready"&&b.state==="ready");
+  }
+  function cerrarVision(){
+    if(V){clearInterval(V.tm);V=null;}
+    visionBusy=false;busy=false;cur=null;
+    refreshHeader();save();
+  }
+  window.enviarFoto=function(texto){
+    if(!visionListo()){showSheet("Para que Nova vea fotos descarga las 2 partes de Nova Vista (unos 640 MB en total). Se hace una sola vez.");return;}
+    const img=foto;foto=null;mostrarPrev();
+    box.value="";crecer();
+    const c=chat();
+    const w=document.querySelector(".welcome");if(w)w.remove();
+    quitarRegen();
+    c.msgs.push({role:"user",content:"📷 "+texto});
+    if(c.title==="Nuevo chat")c.title="Foto: "+texto.slice(0,24);
+    c.ts=Date.now();
+    data.chats=[c].concat(data.chats.filter(x=>x!==c));
+    const ub=bubble("user","");
+    const im2=document.createElement("img");
+    im2.src=img;
+    im2.style.cssText="max-width:100%;height:120px;border-radius:12px;display:block;margin-bottom:6px";
+    ub.appendChild(im2);
+    ub.appendChild(document.createTextNode(texto));
+    const bub=bubble("bot","");
+    cur=bub;
+    const lab=document.createElement("div");lab.textContent="Preparando…";
+    const bar=document.createElement("div");
+    bar.style.cssText="height:6px;border-radius:3px;background:#2a3040;margin:8px 0;overflow:hidden;min-width:200px";
+    const fill=document.createElement("div");
+    fill.style.cssText="height:100%;width:0;background:var(--user);transition:width .4s";
+    bar.appendChild(fill);
+    const info=document.createElement("small");info.style.color="var(--muted)";
+    const txt=document.createElement("div");
+    bub.append(lab,bar,info,txt);
+    busy=true;visionBusy=true;refreshHeader();renderList();save();
+    const t0=Date.now(),est=data.visionMs||60000;
+    V={c,bub,lab,fill,info,txt,t0,est,first:0,tokens:0,stage:0};
+    V.tm=setInterval(()=>{
+      if(!V)return;
+      const e=Date.now()-V.t0;
+      let p=V.stage;
+      if(V.stage<90)p=Math.max(V.stage,Math.min(88,Math.round(e/V.est*100)));
+      V.fill.style.width=p+"%";
+      estado.textContent="mirando foto… "+p+"% · "+fmt4(e);
+    },400);
+    B.describe(img,texto);
+  };
+  window.novaVisionStage=function(st,tk,partial){
+    if(!V)return;
+    V.stage=st;V.tokens=tk;
+    const e=Date.now()-V.t0;
+    if(st<10)V.lab.textContent="Liberando memoria…";
+    else if(st<30)V.lab.textContent="Cargando el modelo de visión…";
+    else if(st<90)V.lab.textContent="Mirando la foto…";
+    else V.lab.textContent="Escribiendo…";
+    if(tk>0){
+      if(!V.first){V.first=Date.now();data.visionMs=Math.round(V.est*0.5+e*0.5);}
+      V.txt.textContent=partial;
+      V.info.textContent=tk+" tokens · "+fmt4(e);
+      chatEl.scrollTop=chatEl.scrollHeight;
+    }else V.info.textContent="Van "+fmt4(e);
+  };
+  window.novaVisionDone=function(text){
+    if(!V)return;
+    const v=V,out=String(text||"").trim(),ms=Date.now()-v.t0,tk=v.tokens;
+    if(!out){
+      v.bub.textContent="No pude describir la foto. Intenta con otra.";
+      cerrarVision();activate(false);return;
+    }
+    v.bub.textContent=out;
+    const msg={role:"assistant",content:"[Foto] "+out};
+    v.c.msgs.push(msg);
+    const m=document.createElement("div");
+    m.style.cssText="font-size:11px;color:var(--muted);margin-top:6px";
+    m.textContent="⏱ "+fmt4(ms)+" · "+tk+" tokens · modelo de visión (en inglés)";
+    v.bub.appendChild(m);
+    addActs(msg,true);
+    const tr=document.createElement("button");
+    tr.type="button";tr.textContent="🇪🇸";
+    tr.onclick=()=>{
+      if(busy||!ready){toast("Espera a que Nova esté lista");return;}
+      box.value="Traduce al español: "+out;
+      enviar();
+    };
+    chatEl.lastElementChild.appendChild(tr);
+    cerrarVision();
+    activate(false);
+  };
+  window.novaVisionError=function(msg){
+    if(V)V.bub.textContent="No pude mirar la foto: "+msg;
+    cerrarVision();
+    activate(false);
+  };
+  window.novaVisionMissing=function(){
+    if(V)V.bub.textContent="Falta descargar Nova Vista.";
+    cerrarVision();
+    showSheet("Para que Nova vea fotos descarga las 2 partes de Nova Vista (unos 640 MB en total).");
+  };
+  const _e2=window.enviar;
+  window.enviar=function(){
+    if(visionBusy){B.cancelVision();toast("Cancelando…");return;}
+    _e2();
+  };
 })();
