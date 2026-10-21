@@ -1,8 +1,15 @@
 package io.shubham0204.smollmandroid
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import android.text.Html
 import io.shubham0204.smollm.SmolLM
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -36,6 +43,22 @@ internal val MODELS = listOf(
         "qwen2.5-1.5b-instruct-q4_k_m.gguf",
         "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
         1117,
+    ),
+    NovaModel(
+        "vista",
+        "Nova Vista",
+        "Mira fotos · descarga 1 de 2",
+        "SmolVLM-500M-Instruct-Q8_0.gguf",
+        "https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF/resolve/main/SmolVLM-500M-Instruct-Q8_0.gguf",
+        437,
+    ),
+    NovaModel(
+        "vista_mm",
+        "Nova Vista · parte 2",
+        "Descarga 2 de 2 (necesaria para fotos)",
+        "mmproj-SmolVLM-500M-Instruct-f16.gguf",
+        "https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF/resolve/main/mmproj-SmolVLM-500M-Instruct-f16.gguf",
+        199,
     ),
 )
 
@@ -174,4 +197,42 @@ internal fun replayHistory(llm: SmolLM, history: String) {
             llm.addAssistantMessage(p.second)
         }
     }
+}
+
+internal suspend fun searchBoth(q: String): List<Hit> =
+    withTimeoutOrNull(9000L) {
+        withContext(Dispatchers.IO) {
+            val w = async {
+                try {
+                    wikiSearch(q)
+                } catch (e: Exception) {
+                    emptyList<Hit>()
+                }
+            }
+            val d = async {
+                try {
+                    webSearch(q)
+                } catch (e: Exception) {
+                    emptyList<Hit>()
+                }
+            }
+            (w.await().take(1) + d.await().take(2)).distinctBy { it.url }
+        }
+    } ?: emptyList()
+
+internal fun hitsJson(hits: List<Hit>): String {
+    val arr = JSONArray()
+    for (h in hits) {
+        val o = JSONObject()
+        o.put("t", h.title.take(80))
+        o.put("s", h.snippet.take(220))
+        o.put("u", h.url)
+        arr.put(o)
+    }
+    return arr.toString()
+}
+
+internal fun copyClip(ctx: Context, text: String) {
+    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    cm.setPrimaryClip(ClipData.newPlainText("Nova", text))
 }
