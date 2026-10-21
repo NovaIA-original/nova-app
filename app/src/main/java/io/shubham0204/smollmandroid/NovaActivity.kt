@@ -2,14 +2,13 @@ package io.shubham0204.smollmandroid
 
 import android.annotation.SuppressLint
 import android.app.DownloadManager
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.util.Base64
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
@@ -22,13 +21,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import io.shubham0204.smollm.NovaVision
 import io.shubham0204.smollm.SmolLM
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -37,7 +36,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -61,6 +59,7 @@ class NovaActivity : ComponentActivity() {
     private var pollJob: Job? = null
     private val active = mutableSetOf<String>()
     private var pickId: String? = null
+    private var visionJob: Job? = null
     private var tts: TextToSpeech? = null
     private var ttsReady = false
 
@@ -249,6 +248,16 @@ class NovaActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
+        fun describe(b64: String, prompt: String) {
+            runOnUiThread { describePhoto(b64, prompt) }
+        }
+
+        @JavascriptInterface
+        fun cancelVision() {
+            NovaVision.cancel()
+        }
+
+        @JavascriptInterface
         fun speak(text: String, pitch: Double) {
             runOnUiThread { speakText(text, pitch.toFloat()) }
         }
@@ -289,8 +298,7 @@ class NovaActivity : ComponentActivity() {
     }
 
     private fun copyText(text: String) {
-        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText("Nova", text))
+        copyClip(this, text)
     }
 
     private fun speakText(text: String, pitch: Float) {
@@ -410,7 +418,7 @@ class NovaActivity : ComponentActivity() {
 
     private fun openChat(modelId: String, history: String, extra: String) {
         val m = MODELS.firstOrNull { it.id == modelId }
-        if (m == null || refreshDownload(m) != "ready") {
+        if (m == null || m.id.startsWith("vista") || refreshDownload(m) != "ready") {
             js0("novaNeedModel()")
             return
         }
@@ -501,35 +509,58 @@ class NovaActivity : ComponentActivity() {
     }
 
     private fun searchWeb(q: String) {
-        scope.launch {
-            val hits = withTimeoutOrNull(9000L) {
-                withContext(Dispatchers.IO) {
-                    val w = async {
+        scope.launch { js("novaResults", hitsJson(searchBoth(q))) }
+    }
+
+    private fun describePhoto(b64: String, prompt: String) {
+        val mm = MODELS.firstOrNull { it.id == "vista" }
+        val pj = MODELS.firstOrNull { it.id == "vista_mm" }
+        if (mm == null || pj == null || refreshDownload(mm) != "ready" || refreshDownload(pj) != "ready") {
+            js0("novaVisionMissing()")
+            return
+        }
+        val bytes = try {
+            Base64.decode(b64.substringAfter(","), Base64.DEFAULT)
+        } catch (e: Exception) {
+            js("novaVisionError", "La foto no es válida")
+            return
+        }
+        visionJob?.cancel()
+        visionJob = scope.launch {
+            engineLock.withLock {
+                try {
+                    generating?.cancelAndJoin()
+                    loaded = false
+                    js0("novaVisionStage(0,0,\"\")")
+                    withContext(Dispatchers.Default) {
                         try {
-                            wikiSearch(q)
+                            llm.close()
                         } catch (e: Exception) {
-                            emptyList<Hit>()
                         }
                     }
-                    val d = async {
-                        try {
-                            webSearch(q)
-                        } catch (e: Exception) {
-                            emptyList<Hit>()
+                    val poll = launch {
+                        while (true) {
+                            val p = JSONObject.quote(NovaVision.partial())
+                            js0("novaVisionStage(" + NovaVision.stage() + "," + NovaVision.tokens() + "," + p + ")")
+                            delay(300)
                         }
                     }
-                    (w.await().take(1) + d.await().take(2)).distinctBy { it.url }
+                    val text = try {
+                        withContext(Dispatchers.Default) {
+                            val a1 = modelFile(mm).absolutePath
+                            val a2 = modelFile(pj).absolutePath
+                            NovaVision.describe(a1, a2, bytes, prompt, 4, 200)
+                        }
+                    } finally {
+                        poll.cancel()
+                    }
+                    js("novaVisionDone", text)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    js("novaVisionError", e.message ?: "Error en la visión")
                 }
-            } ?: emptyList()
-            val arr = JSONArray()
-            for (h in hits) {
-                val o = JSONObject()
-                o.put("t", h.title.take(80))
-                o.put("s", h.snippet.take(220))
-                o.put("u", h.url)
-                arr.put(o)
             }
-            js("novaResults", arr.toString())
         }
     }
 }
