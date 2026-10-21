@@ -8,6 +8,14 @@ get_filename_component(LLAMA_DIR ${LLAMA_DIR_RELATIVE} ABSOLUTE)
 set(GGML_DIR ${LLAMA_DIR}/ggml)
 set(COMMON_DIR ${LLAMA_DIR}/common)
 set(VENDOR_DIR ${LLAMA_DIR}/vendor)
+set(MTMD_DIR ${LLAMA_DIR}/tools/mtmd)
+
+# --- Nova: motor de imagenes (mtmd), como libreria estatica ---
+set(NOVA_SHARED_BACKUP ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+add_subdirectory(${MTMD_DIR} mtmd EXCLUDE_FROM_ALL)
+set(BUILD_SHARED_LIBS ${NOVA_SHARED_BACKUP})
 
 # -fvisibility=hidden: hide all symbols by default
 # -fvisibility-inlines-hidden: hide all inline symbols by default
@@ -39,6 +47,7 @@ function(build_library target_name)
             SHARED
             LLMInference.cpp
             smollm.cpp
+            NovaVision.cpp
     )
     target_include_directories(
             ${target_name}
@@ -49,6 +58,7 @@ function(build_library target_name)
             ${GGML_DIR}/src/ggml-cpu
             ${LLAMA_DIR}/include
             ${VENDOR_DIR}
+            ${MTMD_DIR}
     )
     # -fvisibility=hidden: hide all symbols by default
     # -fvisibility-inlines-hidden: hide all inline symbols by default
@@ -66,7 +76,7 @@ function(build_library target_name)
     )
     target_link_libraries(
             ${target_name}
-            android log llama common vulkan
+            android log llama common mtmd vulkan
     )
     # -Wl,--gc-sections: remove unused sections (garbage collection)
     # -flto: link-time optimization
