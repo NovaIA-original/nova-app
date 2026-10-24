@@ -67,7 +67,7 @@
   setInterval(()=>{
     if(busy&&ready&&!trk){trk=true;t0=Date.now();tokN=0;tFirst=0;}
     if(!busy&&trk)trk=false;
-    if(!trk||(typeof visionBusy!=="undefined"&&visionBusy))return;
+        if(!trk||(typeof visionBusy!=="undefined"&&visionBusy))return;
     const e=Date.now()-t0;
     if(!tFirst){
       const est=data.waitMs||8000;
@@ -113,9 +113,7 @@
     const c=chat();
     const w=document.querySelector(".welcome");if(w)w.remove();
     quitarRegen();
-    const hist=c.msgs.filter(x=>x.content).slice(-4).map(x=>(x.role==="user"?"Usuario: ":"Nova: ")+x.content.slice(0,200)).join("\n");
-    const ex=(typeof extra==="function"?String(extra()||""):"").slice(0,600);
-    const prompt="Eres Nova, una asistente de IA amable y directa. Responde siempre en español, con frases cortas. "+ex+(hist?"\nConversación reciente:\n"+hist:"")+"\nMira la foto y responde a esto: "+texto;
+    const prompt="Eres Nova. Mira la foto y responde en español solo lo que te preguntan, sin describir todo lo demás. Pregunta: "+texto;
     const um={role:"user",content:"📷 "+texto};
     c.msgs.push(um);
     if(c.title==="Nuevo chat")c.title="Foto: "+texto.slice(0,24);
@@ -136,7 +134,7 @@
     fill.style.cssText="height:100%;width:0;background:var(--user);transition:width .4s";
     bar.appendChild(fill);
     const info=document.createElement("small");info.style.color="var(--muted)";
-    const txt=document.createElement("div");
+        const txt=document.createElement("div");
     bub.append(lab,bar,info,txt);
     busy=true;visionBusy=true;refreshHeader();renderList();save();
     const t0=Date.now(),est=data.visionMs||60000;
@@ -208,7 +206,7 @@
     chip=document.createElement("div");
     chip.style.cssText="margin:0 12px 6px;padding:8px 12px;border-radius:12px;background:var(--bot);color:var(--text);font-size:13px;display:flex;justify-content:space-between;gap:8px";
     const s1=document.createElement("span");s1.textContent="📎 "+adj.name+" · escribe tu pregunta y envía";
-    const x=document.createElement("span");x.textContent="✕";x.style.cursor="pointer";
+        const x=document.createElement("span");x.textContent="✕";x.style.cursor="pointer";
     x.onclick=()=>{adj=null;mostrarAdj();};
     chip.append(s1,x);
     $("footer").before(chip);
