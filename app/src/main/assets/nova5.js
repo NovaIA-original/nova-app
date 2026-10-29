@@ -195,4 +195,5 @@
   };
 
   try{if(typeof B.cmd==="function")B.cmd("ready","");}catch(e){}
+(function(){var s=document.createElement("script");s.src="nova6.js";document.body.appendChild(s);})();
 })();
