@@ -46,7 +46,7 @@ class NovaActivity : ComponentActivity() {
     private val systemPrompt =
         "Eres Nova, una asistente de inteligencia artificial amable y directa. " +
             "Eres una IA sin cuerpo: no tienes manos, fotos ni cara. " +
-            "Responde siempre en español, con frases cortas. " +
+            "Responde siempre en español. " +
             "Si no sabes algo, dilo con honestidad en vez de inventar."
 
     private lateinit var web: WebView
@@ -76,7 +76,9 @@ class NovaActivity : ComponentActivity() {
 
     private val mic = NovaMic(this) { fn, arg -> js(fn, arg) }
     private val files = NovaFiles(this) { fn, arg -> js(fn, arg) }
-        private val imgPicker =
+    private val extras = NovaExtras(this, { fn, arg -> js(fn, arg) }, { uri -> loadPhoto(uri) })
+
+    private val imgPicker =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             if (uri != null) loadPhoto(uri)
         }
@@ -86,7 +88,7 @@ class NovaActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        tts = TextToSpeech(this) { status ->
+                tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 val def = Locale.getDefault()
                 val loc = if (def.language == "es") def else Locale("es", "ES")
@@ -153,6 +155,12 @@ class NovaActivity : ComponentActivity() {
         web.loadUrl("file:///android_asset/nova.html")
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        extras.run("share", "", intent)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()
@@ -167,6 +175,7 @@ class NovaActivity : ComponentActivity() {
         } catch (e: Exception) {
         }
     }
+
     inner class Bridge {
         @JavascriptInterface
         fun loadData(): String =
@@ -188,7 +197,7 @@ class NovaActivity : ComponentActivity() {
             }.start()
         }
 
-        @JavascriptInterface
+                @JavascriptInterface
         fun getModels(): String = modelsJson()
 
         @JavascriptInterface
@@ -252,6 +261,11 @@ class NovaActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
+        fun cmd(name: String, arg: String) {
+            runOnUiThread { extras.run(name, arg, this@NovaActivity.intent) }
+        }
+
+        @JavascriptInterface
         fun describe(b64: String, prompt: String) {
             runOnUiThread { describePhoto(b64, prompt) }
         }
@@ -287,6 +301,7 @@ class NovaActivity : ComponentActivity() {
             .replace("\u2029", "\\u2029")
         web.evaluateJavascript("$fn($q)", null)
     }
+
     private fun loadPhoto(uri: Uri) {
         scope.launch {
             try {
@@ -312,7 +327,7 @@ class NovaActivity : ComponentActivity() {
         t.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "nova")
     }
 
-    private fun modelFile(m: NovaModel) = File(modelsDir, m.file)
+        private fun modelFile(m: NovaModel) = File(modelsDir, m.file)
 
     private fun refreshDownload(m: NovaModel): String {
         val key = "dl_" + m.id
@@ -392,6 +407,7 @@ class NovaActivity : ComponentActivity() {
             js("novaModels", modelsJson())
         }
     }
+
     private fun startPolling() {
         if (pollJob?.isActive == true) return
         pollJob = scope.launch {
@@ -418,7 +434,7 @@ class NovaActivity : ComponentActivity() {
         }
     }
 
-    private fun openChat(modelId: String, history: String, extra: String) {
+        private fun openChat(modelId: String, history: String, extra: String) {
         val m = MODELS.firstOrNull { it.id == modelId }
         if (m == null || m.id.startsWith("vista") || refreshDownload(m) != "ready") {
             js0("novaNeedModel()")
@@ -482,7 +498,8 @@ class NovaActivity : ComponentActivity() {
             if (used > 2300) js0("novaRebuild()")
         }
     }
-        private fun copyModel(id: String, uri: Uri) {
+
+    private fun copyModel(id: String, uri: Uri) {
         val m = MODELS.firstOrNull { it.id == id } ?: return
         js("novaStatus", "copiando el modelo...")
         scope.launch {
@@ -509,7 +526,7 @@ class NovaActivity : ComponentActivity() {
         }
     }
 
-    private fun searchWeb(q: String) {
+        private fun searchWeb(q: String) {
         scope.launch { js("novaResults", hitsJson(searchBoth(q))) }
     }
 
