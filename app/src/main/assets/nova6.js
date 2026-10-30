@@ -199,4 +199,5 @@
   };
 
   try{if(typeof renderChat==="function")renderChat();}catch(e){}
+(function(){var s=document.createElement("script");s.src="nova7.js";document.body.appendChild(s);})();
 })();
