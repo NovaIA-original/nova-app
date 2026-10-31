@@ -1,18 +1,18 @@
 package io.shubham0204.smollmandroid
 
-import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.provider.AlarmClock
-import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 internal class NovaExtras(
     private val act: ComponentActivity,
@@ -22,6 +22,7 @@ internal class NovaExtras(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var pendingExport = ""
     private var camUri: Uri? = null
+    private var camFile: File? = null
 
     private val exporter =
         act.registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
@@ -36,7 +37,16 @@ internal class NovaExtras(
     private val camera =
         act.registerForActivityResult(ActivityResultContracts.TakePicture()) { ok: Boolean ->
             val u = camUri
-            if (ok && u != null) onPhoto(u)
+            val f = camFile
+            if (ok && u != null) {
+                onPhoto(u)
+                scope.launch {
+                    delay(60000)
+                    f?.delete()
+                }
+            } else {
+                f?.delete()
+            }
         }
 
     fun run(name: String, arg: String, intent: Intent?) {
@@ -67,6 +77,7 @@ internal class NovaExtras(
             }
         }
     }
+
         private fun readImport(uri: Uri) {
         scope.launch {
             try {
@@ -83,14 +94,12 @@ internal class NovaExtras(
     }
 
     private fun takePhoto() {
-        val v = ContentValues()
-        v.put(MediaStore.Images.Media.DISPLAY_NAME, "nova_" + System.currentTimeMillis() + ".jpg")
-        v.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-        if (Build.VERSION.SDK_INT >= 29) {
-            v.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Nova")
-        }
+        val dir = File(act.cacheDir, "cam")
+        dir.mkdirs()
+        dir.listFiles()?.forEach { it.delete() }
+        val f = File(dir, "foto_" + System.currentTimeMillis() + ".jpg")
         val u = try {
-            act.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v)
+            FileProvider.getUriForFile(act, act.packageName + ".fileprovider", f)
         } catch (e: Exception) {
             null
         }
@@ -99,6 +108,7 @@ internal class NovaExtras(
             return
         }
         camUri = u
+        camFile = f
         try {
             camera.launch(u)
         } catch (e: Exception) {
